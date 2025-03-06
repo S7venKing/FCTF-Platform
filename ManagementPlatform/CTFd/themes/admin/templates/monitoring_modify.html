@@ -1,0 +1,252 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<style>
+    .title {
+        font-family: monospace;
+        color: #E86A33;
+        font-size: larger;
+        text-align: left;
+    }
+
+    .metrics-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .metric-wrapper {
+        flex: 1;
+        max-width: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .metric-box {
+        width: 100%;
+        height: 300px;
+        border: 2px solid #E86A33;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .metric-label {
+        font-family: monospace;
+        color: #E86A33;
+        font-size: larger;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .chart-container {
+        width: 100%;
+        height: auto;
+    }
+
+    .metrics-summary {
+        display: flex;
+        width: 100%;
+        margin: 20px 0;
+        gap: 20px;
+    }
+
+    .instance-list {
+        flex: 1;
+        max-width: 25%;
+        border: 2px solid #E86A33;
+        padding: 10px;
+        overflow-y: auto;
+        height: 400px;
+    }
+
+    .instance-card {
+        border: 1px solid #E86A33;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        cursor: pointer;
+    }
+
+    .instance-card:hover {
+        background-color: #ffe6d5;
+    }
+
+    .chart-section {
+        flex: 3;
+        max-width: 75%;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .chart-box {
+        width: 100%;
+        border: 2px solid #E86A33;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+    }
+</style>
+
+<div class="jumbotron">
+    <div class="container">
+        <h1>Monitoring</h1>
+    </div>
+</div>
+
+<div class="wrapper d-flex">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-12">
+                <h2 class="title">Challenge Hosting Platform Metrics</h2>
+            </div>
+
+            <div class="metrics-container">
+                {% for metric in ["CPU", "Memory"] %}
+                <div class="metric-wrapper">
+                    <div class="metric-box">
+                        <div class="chart-container">
+                            <canvas id="{{ metric | lower }}Chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="metric-label">{{ metric }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-12">
+                <h2 class="title">Challenge Instance Metrics Summary</h2>
+            </div>
+
+            <div class="metrics-summary">
+                <div class="instance-list">
+                    <div id="instanceData"></div>
+                </div>
+
+                <div class="chart-section">
+                    <div class="chart-box">
+                        <canvas id="cpuChartInstance"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="ramChartInstance"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Test data
+        const instanceMetrics = [
+            { id: "inst-001", challenge: "Challenge A", team: "Team Alpha", cpu: 45, ram: 60 },
+            { id: "inst-002", challenge: "Challenge B", team: "Team Beta", cpu: 35, ram: 50 },
+            { id: "inst-003", challenge: "Challenge C", team: "Team Gamma", cpu: 55, ram: 75 }
+        ];
+
+        function getCurrentTime() {
+            return new Date().toLocaleTimeString(); //Time format (HH:mm:ss)
+        }
+
+        //Function to create chart
+        function createChart(canvasId, label) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if (!ctx) return null;
+
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(10).fill("").map(() => getCurrentTime()),
+                    datasets: [{
+                        label: label,
+                        borderColor: "#E86A33",
+                        borderWidth: 2,
+                        data: Array(10).fill(0),
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: "Time" } },
+                        y: { title: { display: true, text: "Usage (%)" }, min: 0, max: 100 }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        const charts = {
+            cpuChart: createChart('cpuChart', 'CPU Usage'),
+            memoryChart: createChart('memoryChart', 'Memory Usage'),
+            cpuChartInstance: createChart('cpuChartInstance', 'CPU Usage'),
+            ramChartInstance: createChart('ramChartInstance', 'RAM Usage')
+        };
+
+        function updateChart(chart, newValue) {
+            if (!chart) return;
+            chart.data.labels.shift();
+            chart.data.labels.push(getCurrentTime());
+            chart.data.datasets[0].data.shift();
+            chart.data.datasets[0].data.push(newValue);
+            chart.update();
+        }
+
+        // Set interval to update charts and table every 3 seconds
+        setInterval(() => {
+            updateChart(charts.cpuChart, Math.random() * 100);
+            updateChart(charts.memoryChart, Math.random() * 100);
+        }, 3000);
+
+        // Function to show all Instance
+        function loadInstanceMetrics() {
+            const container = document.getElementById("instanceData");
+            container.innerHTML = instanceMetrics.map(instance => `
+                <div class="instance-card" onclick="updateInstanceCharts(${instance.cpu}, ${instance.ram})">
+                    <p><strong>Instance ID:</strong> ${instance.id}</p>
+                    <p><strong>Challenge:</strong> ${instance.challenge}  -  <strong>Team:</strong> ${instance.team}</p>
+                    <p><strong>CPU:</strong> ${instance.cpu}%  -  <strong>RAM:</strong> ${instance.ram}%</p>
+                </div>
+            `).join('');
+        }
+
+        window.updateInstanceCharts = function (cpu, ram) {
+            
+            updateChart(charts.cpuChartInstance, cpu);
+            updateChart(charts.ramChartInstance, ram);
+            
+
+            /*
+            // Reset lại biểu đồ
+            charts.cpuChartInstance.data.labels = [];
+            charts.cpuChartInstance.data.datasets[0].data = [];
+
+            charts.ramChartInstance.data.labels = [];
+            charts.ramChartInstance.data.datasets[0].data = [];
+
+            // Thêm dữ liệu của Instance vừa chọn
+            charts.cpuChartInstance.data.labels.push(getCurrentTime());
+            charts.cpuChartInstance.data.datasets[0].data.push(cpu);
+
+            charts.ramChartInstance.data.labels.push(getCurrentTime());
+            charts.ramChartInstance.data.datasets[0].data.push(ram);
+
+            // Cập nhật lại biểu đồ
+            charts.cpuChartInstance.update();
+            charts.ramChartInstance.update(); 
+            */
+        };
+
+        loadInstanceMetrics();
+    });
+</script>
+
+{% endblock %}

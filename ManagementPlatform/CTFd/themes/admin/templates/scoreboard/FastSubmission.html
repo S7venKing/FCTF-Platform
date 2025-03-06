@@ -1,0 +1,38 @@
+<table id="scoreboard" class="table table-striped border">
+	<thead>
+		<tr>
+            <th class="text-left"><b>Challenge</b></th>
+			<th class="text-left"><b>Team</b></th>
+            <th class="text-center"><b>Submissions Time</b></th>
+		</tr>
+	</thead>
+	<tbody>
+        {% for team in top_submission %}
+
+        <tr name="{{ team.team_id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
+            
+            <td class="team-name" value="{{ team.challenge_name }}">
+                <span class="d-block text-muted">
+                        {% if team.challenge_name %}
+                            {{ team.challenge_name | truncate(20) }}
+                        {% endif %}
+                </span>
+            </td>
+            
+            <td class="team-name" value="{{ team.team_name }}">
+                <a href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
+                    {{ team.team_name| truncate(32) }}
+                </a>
+                <span class="d-block text-muted">
+                    <small>
+                        {% if team.affiliation %}
+                            {{ team.affiliation | truncate(20) }}
+                        {% endif %}
+                    </small>
+                </span>
+            </td>
+            <td class="text-center">{{team.submission_time}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

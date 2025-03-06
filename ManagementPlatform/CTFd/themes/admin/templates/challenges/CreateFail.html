@@ -1,0 +1,21 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>Challenges
+
+        </h1>
+    </div>
+</div>
+<div class="container text-center py-5">
+    <div class="alert alert-danger mt-4">
+        Xảy ra lỗi trong quá trình tạo thử thách
+    </div>
+    <h5 class="mt-4">Chi tiết:</h5>
+    <div class="bg-light border rounded p-3" style="height: 300px;">
+        <p>{{ error_message }}</p>
+    </div>
+    <a href="{{ url_for('admin.challenges_new') }}" class="btn btn-dark mt-4">Thử lại</a>
+</div>
+{% endblock %}

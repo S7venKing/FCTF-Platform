@@ -1,0 +1,75 @@
+{% extends "admin/base.html" %} 
+{% block stylesheets %} {{
+Assets.css("assets/css/challenge-board.scss", theme="admin") }} 
+{% endblock %}
+{% block content %}
+<div class="jumbotron">
+  <div class="container">
+    <h1>Deploy History</h1>
+  </div>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-md-12 table-responsive">
+      <div>
+        <table id="challenges" class="table table-striped border">
+          <thead>
+            <tr>
+              <td
+                class="d-block border-right border-bottom text-center"
+                data-checkbox
+              >
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    autocomplete="off"
+                    data-checkbox-all
+                  />&nbsp;
+                </div>
+              </td>
+              <th class="sort-col text-center"><b>ID</b></th>
+              <th class="sort-col text-center"><b>Deploy state</b></th>
+              <th class="sort-col text-center"><b>Deploy At</b></th>
+              <th class=""></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not deployed_challenges %}
+            <tr>
+              <td colspan="6" class="text-center">
+                No deployed challenges available.
+              </td>
+            </tr>
+            {% else %} 
+            {% for deployed_challenge, challenge in deployed_challenges %}
+            <tr>
+              <td class="text-center">
+                {{ deployed_challenge.id if deployed_challenge.id else 'N/A' }}
+              </td>
+              <td class="text-center">
+                {{ deployed_challenge.challenge_id if deployed_challenge.challenge_id else 'N/A' }}
+              </td>
+
+              <td class="text-center">
+                {{ deployed_challenge.deploy_status if deployed_challenge.deploy_status else 'N/A' }}
+              </td>
+              <td class="text-center">
+                {{ deployed_challenge.deploy_at if deployed_challenge.deploy_at else 'N/A' }}
+              </td>
+              <td>
+                <a
+                  href="{{ url_for('challengeHistory.view_deploy_history_details', id=deployed_challenge.id) }}"
+                  >View details</a
+                >
+              </td>
+            </tr>
+            {% endfor %} 
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

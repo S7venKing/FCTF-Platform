@@ -1,0 +1,54 @@
+<table id="scoreboard" class="table table-striped border">
+    <thead>
+        <tr>
+            <th class="border-right" data-checkbox>
+                <div class="form-check text-center">
+                    <input type="checkbox" class="form-check-input" id="scoreboard-bulk-select" autocomplete="off" data-checkbox-all>&nbsp;
+                </div>
+            </th>
+            <th class="sort-col text-center"><b>Team ID</b></th>
+            <th class="sort-col"><b>Team Name</b></th>
+            <th>Status</th>
+            <th class="sort-col"><b>Last Submission Time</b></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for topic, teams in top_solves_with_topics.items() %}
+            <!-- Display the topic name as a row spanning all columns -->
+            <tr>
+                <td colspan="4" class="font-weight-bold">{{ topic }}</td>
+            </tr>
+            {% for team in teams %}
+            <tr name="{{ team.team_id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
+                <td>
+                    <div class="form-check text-center">
+                        <input type="checkbox" class="form-check-input" name="select-team" autocomplete="off">&nbsp;
+                    </div>
+                </td>
+                <td class="team-id text-center">{{ team.team_id }}</td>
+                <td class="team-name">
+                    <a href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
+                        {{ team.team_name | truncate(32) }}
+                    </a>
+                </td>
+                <td class="team-status">
+                    <!-- Display CLEARED or the number of solved challenges -->
+                    {{ team.status }}
+                </td>
+                <td class="last-submission-time">
+                    {% if team.last_submission_time %}
+            {{ team.last_submission_time | convert_to_local_time | strftime("%Y-%m-%d %H:%M:%S") }}
+        {% else %}
+            N/A
+        {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <!-- If there are no teams, show a message -->
+            <tr>
+                <td colspan="5" class="text-center">No teams available for this topic.</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

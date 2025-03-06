@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+
+    <!-- Pop-up notification container for flash messages -->
+    <div id="popup" class="alert" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    const popup = document.getElementById("popup");
+                    let messageContent = `
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    `;
+                    popup.innerHTML = messageContent;
+                    popup.style.display = "block";
+
+                    // Hide the pop-up after 3 seconds
+                    setTimeout(function() {
+                        popup.style.display = "none";
+                    }, 3000);
+                });
+            </script>
+        {% endif %}
+    {% endwith %}
+
+    <div class="container">
+        <h1>Tickets</h1>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">ID</th>
+                <th style="width: 10%;">Type</th>
+                <th class="text-center" style="width: 20%;">Title</th>
+                <th class="text-center" style="width: 30%;">Message</th>
+                <th class="text-center" style="width: 15%;">Create At</th>
+                <th class="text-center" style="width: auto;">Status</th>
+                <th class="text-center" style="width: 10%;">Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td>{{ ticket.id }}</td>
+                <td>{{ ticket.type }}</td>
+                <td>{{ ticket.title }}</td>
+                <td>{{ ticket.description }}</td>
+                <td>{{ ticket.date }}</td>
+                <td>{{ ticket.status }}</td>
+                <td class="text-center"><a href="{{ url_for('admin.view_tickets_detail', ticket_id=ticket.id) }}">Show Detail</a></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">No tickets found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

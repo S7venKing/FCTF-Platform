@@ -1,0 +1,115 @@
+<form id="challenge-deploy" enctype="multipart/form-data">
+  <div class="form-group">
+    <label>Files template:</label>
+							<ul id="template-list">
+								{% for filename in template_files %}
+								<li class="list-unstyled">
+									<a href="{{ url_for('admin.download_template', filename=filename) }}" download>
+										{{ filename }}
+									</a>
+								</li>
+								{% else %}
+								<li>No templates available.</li>
+								{% endfor %}
+							</ul>
+    <label>
+      Files:
+      <small class="form-text text-muted">Files distributed along with your challenge</small>
+    </label>
+    <input class="form-control-file" type="file" name="deploy_file" id="file-upload" required />
+  </div>
+
+  <div class="row d-flex justify-content-between m-2">
+    <!-- <button id="re-deploy-btn" class="btn btn-primary" type="button">
+      Re-deploy
+    </button> -->
+    <button id="deploy-btn" class="btn btn-success" type="submit">
+      Deploy
+    </button>
+  </div>
+  <div id="status-message" class="mt-3 alert" style="display: none"></div>
+</form>
+
+<script>
+  var CHALLENGE_ID = {{ challenge.id }};
+  var DEPLOYS = {{ deploys }}
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("challenge-deploy");
+    const fileInput = document.getElementById("file-upload");
+    const deployBtn = document.getElementById("deploy-btn");
+    const reDeployBtn = document.getElementById("re-deploy-btn");
+    const statusMessage = document.getElementById("status-message");
+
+    function updateButtonState() {
+      deployBtn.disabled = fileInput.files.length === 0;
+    }
+
+    if (DEPLOYS == 0) {
+      reDeployBtn.style.display = 'none'
+      reDeployBtn.disabled = false
+    }
+
+    function handleDeploy(event) {
+      event.preventDefault();
+
+      const params = { challenge_id: CHALLENGE_ID };
+
+      Promise.all([
+        new Promise(function (resolve, _reject) {
+          const data = {
+            challenge_id: CHALLENGE_ID,
+            type: "challenge",
+          };
+
+          if (fileInput.files.length > 0) {
+            helpers.files.upload(form, data);
+          }
+          resolve();
+          setTimeout(function () {
+            window.location =
+              CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
+          }, 700);
+        }),
+      ]);
+    }
+
+    // API call for Re-deploy
+    // function handleReDeploy() {
+    //   console.log("kkk");
+    //   fetch("/api/v1/challenges/redeploy", {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify({ ChallengeId: CHALLENGE_ID }),
+    //   })
+    //     .then((response) => {
+    //       if (!response.ok) {
+    //         throw new Error('Network response was not ok');
+    //       }
+    //       return response.json(); // Chỉ phân tích JSON nếu phản hồi hợp lệ
+    //     })
+    //     .then((data) => {
+    //       if (data.error) {
+    //         statusMessage.className = "alert alert-danger";
+    //         statusMessage.textContent = data.error;
+    //       } else if (data.message) {
+    //         statusMessage.className = "alert alert-success";
+    //         statusMessage.textContent = data.message;
+    //       }
+    //       statusMessage.style.display = "block";
+    //     })
+    //     .catch((error) => {
+    //       statusMessage.className = "alert alert-danger";
+    //       statusMessage.textContent = `Re-deploy failed: ${error.message}`;
+    //       statusMessage.style.display = "block";
+    //     });
+
+    // }
+
+    fileInput.addEventListener("change", updateButtonState);
+    form.addEventListener("submit", handleDeploy);
+    reDeployBtn.addEventListener("click", handleReDeploy); // Event listener for Re-deploy button
+  });
+
+</script>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Admin Panel</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="shortcut icon" href="{{ url_for('views.themes', theme='admin', path='img/favicon.ico') }}"
+        type="image/x-icon">
+    <link rel="icon" href="{{ url_for('views.themes', theme='admin', path='img/favicon.ico') }}" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+
+    {{ Assets.css("assets/css/main.scss", theme="admin") }}
+    {{ Assets.css("assets/css/fonts.scss", theme="admin") }}
+    {{ Assets.css("assets/css/admin.scss", theme="admin") }}
+    {{ Assets.css("assets/css/codemirror.scss", theme="admin") }}
+    <script type="text/javascript">
+        var init = {
+            'urlRoot': "{{ request.script_root }}",
+            'csrfNonce': "{{ Session.nonce }}",
+            'userMode': "{{ Configs.user_mode }}",
+            'userId': {{ Session.id }},
+            'userName': {{ User.name | tojson }},
+            'userEmail': {{ User.email | tojson }},
+            'teamId': {{ Team.id | tojson }},
+            'teamName': {{ Team.name | tojson }},
+            'start': {{ Configs.start | tojson }},
+            'end': {{ Configs.end | tojson }}
+        }
+    </script>
+    {% block stylesheets %} {% endblock %}
+    {% for stylesheet in get_registered_admin_stylesheets() %}
+    {% if stylesheet.startswith('http') %}
+    <link rel="stylesheet" type="text/css" href="{{ stylesheet }}">
+    {% elif request.script_root %}
+    <link rel="stylesheet" type="text/css" href="{{ request.script_root }}/{{ stylesheet }}">
+    {% else %}
+    <link rel="stylesheet" type="text/css" href="{{ stylesheet }}">
+    {% endif %}
+    {% endfor %}
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            height: 100vh;
+            overflow-x: hidden;
+            font-family: "Space Mono", monospace;
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            width: 280px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #F9F3F1; /* FPT-inspired gradient background */
+            color: #838181;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            overflow-x: hidden;
+        }
+        #sidebar::-webkit-scrollbar {
+            width: 0px;
+        }
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+            background-color: #F9F3F1!important;
+        }
+
+        .logo-container img {
+            max-width: 80%;
+            height: auto;
+        }
+        #sidebar .navbar-brand {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        #sidebar a {
+            color: #838181;
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            font-weight: 500;
+            /* transition: background-color 0.3s, color 0.3s; */
+        }
+
+        #sidebar a i {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+
+        #sidebar a:hover {
+            background-color: #ff5500;
+            color: #ffffff;
+            clip-path: polygon(
+                0% 0%,
+                100% 0%,
+                100% calc(100% - 10px),
+                calc(100% - 10px) 100%,
+                0% 100%
+            );
+        }
+
+        #sidebar .active {
+            background-color: #ff5500;
+            color: #ffffff;
+            clip-path: polygon(
+                0% 0%,
+                100% 0%,
+                100% calc(100% - 10px),
+                calc(100% - 10px) 100%,
+                0% 100%
+            );
+        }
+
+        .dropdown-menu {
+            background-color: #F9F3F1;
+            display: none;
+            margin-top: 10px;
+            transform: none!important;
+        }
+
+        .dropdown-menu a:hover {
+            background-color: #ff5500;
+            color: white;
+        }
+
+        /* Content Styles */
+		#content {
+            margin-left: 300px;
+            padding: 0;
+            width: calc(100% - 280px);
+            overflow-y: auto;
+            background-color: #fff; /* Light grey for better readability of content */
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            color: #ff5500; /* FPT Blue */
+            font-weight: bold;
+        }
+
+        .footer {
+            width: 80%;
+            text-align: center;
+            margin-top: auto;
+            color: #ffffff;
+        }
+        .navbar-brand > img{
+            width: 30%;
+        }
+        .nav-link {
+            transition: none;
+            cursor: pointer;
+            color: #ff5500;
+        }
+        .nav-link:hover {
+            color: #ff5500;
+        }
+        #sidebar .sub-menu {
+            display: none;
+            /* border: solid 1px #ff5500; */
+            background-color: #F7CFBE;
+        }
+        #sidebar .sub-menu a {
+            background-color: #F7CFBE;
+            font-size: 0.8rem;
+        }
+        #sidebar .sub-menu a:hover {
+            color: #fff;
+            background-color: #ff5500;
+        }
+        #sidebar .nav-item a .dropdown{
+            position: absolute;
+            right: 0;
+            margin: 20px;
+            transition: 0.3s ease;
+        }
+        .rotate{
+            transform: rotate(90deg);
+        }
+        .btn-primary {
+            background-color: #ff5500 !important;
+            border: #ff5500 !important;
+        }
+        .form-group .btn {
+            clip-path: polygon(
+                0% 0%,
+                100% 0%,
+                100% calc(100% - 10px),
+                calc(100% - 10px) 100%,
+                0% 100%
+            );
+        }
+        option:hover {
+            background-color: #ff5500;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <nav id="sidebar" class="d-flex flex-column fixed-top">
+        <a href="{{ url_for('views.static_html', route='/') }}" class="navbar-brand logo-container">
+            <img src="{{ url_for('views.themes', theme='admin', path='img/Logo_F-CTf.png') }}" alt="F-CTF">
+        </a>
+        
+        <div class="d-flex flex-column w-100">
+            <ul class="list-unstyled components">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.statistics') }}">
+                        <i class="bx bx-bar-chart-alt-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.challenges_listing') }}">
+                        <i class="bx bx-book"></i> Challenges
+                    </a>
+                </li>
+                {% if is_admin() or is_jury() %}
+                
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.notifications') }}">
+                        <i class="bx bx-bell"></i> Notifications
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.users_listing') }}">
+                        <i class="bx bx-user"></i> Users
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.view_tickets') }}">
+                        <i class="bx bx-envelope"></i> Tickets
+                    </a>
+                </li>
+                {% if get_config('user_mode') == 'teams' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.teams_listing') }}">
+                        <i class="bx bx-group"></i> Teams
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.scoreboard_listing') }}">
+                        <i class="bx bx-trophy"></i> Scoreboard
+                    </a>
+                </li>
+                <li class="nav-item">
+
+                    <a class="nav-link" href="{{ url_for('admin.monitoring') }}">
+                        <i class="bx bx-show"></i> Monitoring
+                    </a>
+                </li>
+                <li class="nav-item">
+
+                    <a class="nav-link" href="{{ url_for('admin.estimate') }}">
+                        <i class="bx bx-cog"></i> Estimates
+                    </a>
+                    
+                </li>
+                {% endif %}
+                {% if is_challenge_writer()%}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.estimate') }}">
+                        <i class="bx bx-cog"></i> Estimates
+                    </a>         
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="sub-btn nav-link"><i class="bx bx-down-arrow-circle"></i>Submissions<i class='bx bx-chevron-right dropdown'></i> </a>
+                    <div class="sub-menu">
+                      <a href="{{ url_for('admin.submissions_listing') }}" class="sub-item">All Submissions</a>
+                      <a href="{{ url_for('admin.submissions_listing', submission_type='correct') }}" class="sub-item">Correct Submissions</a>
+                      <a href="{{ url_for('admin.submissions_listing', submission_type='incorrect') }}" class="sub-item">Incorrect Submissions</a>
+                    </div>
+                </li>
+                {% if is_admin() %}
+               
+                
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.config') }}">
+                        <i class="bx bx-cog"></i> Config
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+     <div id="content" class="pt-0 mt-0">
+        <main role="main" class="pt-0 mt-0">
+            {% if get_config('version_latest') %}
+            
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    {% block entrypoint %}
+    {{ Assets.js("assets/js/pages/main.js", theme="admin") }}
+    {% endblock %}
+
+    {% block scripts %}{% endblock %}
+
+    {% for script in get_registered_admin_scripts() %}
+    <script defer src="{{ script.startswith('http') and script or url_for('static', filename=script) }}"></script>
+    {% endfor %}
+    <script type="text/javascript">
+        $(document).ready(function(){
+          //jquery for toggle sub menus
+          $('.sub-btn').click(function(){
+            $(this).next('.sub-menu').slideToggle();
+            $(this).find('.dropdown').toggleClass('rotate');
+            $(this).toggleClass('active');
+          });
+          {% if not is_detail %}
+          //inserting title underlines
+          $('.jumbotron').find('.container').append(`<svg width="184" height="5" viewBox="0 0 184 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="100" width="43" height="5" fill="#E45C25"/>
+                <rect x="150" width="2" height="5" fill="#E45C25"/>
+                <rect x="154" width="3" height="5" fill="#E45C25"/>
+                <rect x="170" width="3" height="5" fill="#E45C25"/>
+                <rect x="182" width="2" height="5" fill="#E45C25"/>
+                <rect opacity="0.5" width="127" height="5" fill="#E45C25"/>
+            </svg>`);
+            {% endif %}
+    
+          $('.jumbotron').append(`<svg width="100%" height="15" viewBox="0 0 1089 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path opacity="0.3" d="M-7 1H171.287L187.332 14H938.513L954.559 1H1096" stroke="#E45C25" stroke-width="2"/>
+        </svg>`);
+        });
+    </script>
+</body>
+
+</html>
+

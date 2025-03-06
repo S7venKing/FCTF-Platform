@@ -1,0 +1,239 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>Challenges
+            {%if not is_jury()%}
+            <a class="no-decoration" href="{{ url_for('admin.challenges_new') }}">
+                <span role="button" data-toggle="tooltip" title="Create Challenge">
+                    <i class="btn-fa fas fa-plus-circle"></i>
+                </span>
+            </a>
+            {%endif%}
+        </h1>
+    </div>
+</div>
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            {% if q and field %}
+            <h5 class="text-muted text-center">
+                Searching for challenges with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
+            </h5>
+            <h6 class="text-muted text-center pb-3">
+                {{ total }} results
+            </h6>
+            {% endif %}
+
+            {% with form = Forms.challenges.ChallengeSearchForm(field=field, q=q) %}
+            <form method="GET" class="form-inline">
+                <div class="form-group col-md-2">
+                    {{ form.field(class="form-control custom-select w-100") }}
+                </div>
+                <div class="form-group col-md-8">
+                    {{ form.q(class="form-control w-100", placeholder="Search for matching challenge") }}
+                </div>
+                <div class="form-group col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </form>
+            {% endwith %}
+        </div>
+    </div>
+
+    <hr>
+
+    {% if not is_jury() %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="float-left pb-3">
+                    <button class="btn btn-outline-primary w-100">
+                        <a class="nav-link p-0" href="{{ url_for('admin.challenge_template') }}">
+                            <i class="bx bx-cog"></i> Challenge Template
+                        </a>
+                    </button>
+            </div>
+            <div class="float-right pb-3">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary" data-toggle="tooltip"
+                        title="Edit Challenges" id="challenges-edit-button">
+                        <i class="btn-fa fas fa-pencil-alt"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger ml-2" data-toggle="tooltip" title="Delete Challenges"
+                        id="challenges-delete-button">
+                        <i class="btn-fa fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {%endif%}
+    <div class="row">
+        <div class="col-md-12 table-responsive">
+            <div>
+                <table id="challenges" class="table table-striped border">
+                    <thead class="thead-light">
+                        <tr>
+                            <td class="d-block border-right border-bottom text-center" data-checkbox>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" autocomplete="off"
+                                        data-checkbox-all>
+                                </div>
+                            </td>
+                            <th class="sort-col text-center"><b>ID</b></th>
+                            <th class="sort-col text-center"><b>Name</b></th>
+                            <th class="sort-col text-center"><b>Category</b></th>
+                            <th class="sort-col text-center"><b>Value</b></th>
+                            <th class="sort-col text-center"><b>Type</b></th>
+                            <th class="sort-col text-center"><b>Deploy Status</b></th>
+                            <th class="sort-col text-center"><b>State</b></th>
+                            <th class="sort-col text-center"><b>Actions</b></th>
+                            <th class="sort-col text-center"><b>Preview</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for challenge in challenges %}
+                        <tr {% if not is_jury() %} data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
+                            <td class="d-block border-right text-center" data-checkbox>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" value="{{ challenge.id }}"
+                                        autocomplete="off" data-challenge-id="{{ challenge.id }}">
+                                </div>
+                            </td>
+                            <td class="text-center">{{ challenge.id }}</td>
+                            {% if not is_jury() %}
+                            <td cllass="text-center text-wrap">
+                                <a href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
+                                    {{ challenge.name }}
+                                </a>
+                            </td>
+                            {% else %}
+                            <td class="text-center text-wrap"> {{ challenge.name }}</td>
+                            {% endif %}
+                            <td class="text-center text-wrap"> {{ challenge.category }}</td>
+                            <td class="text-center">{{ challenge.value }}</td>
+                            <td class="text-center">{{ challenge.type }}</td>
+                            <td class="text-center">
+                                {% if challenge.deploy_status == 'DEPLOY_SUCCESS' %}
+                                <span class="badge badge-success">DEPLOY_SUCCESS</span>
+                                {% elif challenge.deploy_status == 'DEPLOY_FAILED' %}
+                                <span class="badge badge-danger">DEPLOY_FAILED</span>
+                                {% elif challenge.deploy_status == 'PENDING_DEPLOY' %}
+                                <span class="badge badge-primary">PENDING_DEPLOY</span>
+                                {% elif challenge.deploy_status == 'CREATED' %}
+                                <span class="badge badge-secondary">CREATED</span>
+                                {% else %}
+                                <span class="badge badge-warning">NOT YET</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                {% set badge_state = 'badge-danger' if challenge.state == 'hidden' else 'badge-success'
+                                %}
+                                <span class="badge {{ badge_state }}">{{ challenge.state }}</span>
+                            </td>
+                            {% if challenge.require_deploy %}
+                            <td class="text-center">
+                                <a
+                                    href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=challenge.id) }}">
+                                    <button class="btn btn-primary btn-sm">View Deploy History</button>
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                <button id="preview-button-{{ challenge.id }}" class="btn btn-success btn-sm"
+                                    onclick="previewChallenge({{ challenge.id }})">
+                                    Preview
+                                </button>
+                                <div id="preview-error-{{ challenge.id }}" class="text-danger mt-1"></div>
+                                <div id="preview-success-{{ challenge.id }}" class="text-success mt-1"></div>
+                            </td>
+                            {% else %}
+                            <td colspan="2" class="text-center text-muted">
+                                <i class="fas fa-ban" data-toggle="tooltip"
+                                    title="No actions are required for this challenge"></i> Not Applicable
+                            </td>
+                            {% endif %}
+
+                        </tr>
+                        {% endif %}
+
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function previewChallenge(challengeId) {
+        const errorElement = document.getElementById(`preview-error-${challengeId}`);
+        const previewButton = document.getElementById(`preview-button-${challengeId}`);
+        const successElement = document.getElementById(`preview-success-${challengeId}`);
+
+        errorElement.innerText = "Waiting for response...";
+        previewButton.disabled = true;
+
+        fetch("/api/challenge/start", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                challenge_id: challengeId
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.challenge_url) {
+                        errorElement.style.display = "none";
+
+                        alert("http://" + data.challenge_url);
+                            
+                        } else if (data.Challenge_url) {
+                            try {
+                            errorElement.style.display = "none";
+                            const cacheData = JSON.parse(data.Challenge_url);
+                            const challengeUrl = cacheData.challenge_url;
+                            if (challengeUrl) {
+                                alert("http://" + data.challenge_url);
+
+                            } else {
+                                errorElement.innerText = "Challenge URL not found in cached data.";
+                            }
+                        } catch (e) {
+                            errorElement.innerText = "Error parsing cached data.";
+                        }
+                    } else {
+                        errorElement.innerText = "Challenge URL not available.";
+                    }
+                } else {
+                    errorElement.innerText = data.message || "Failed to Preview challenge.";
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                errorElement.innerText = "Connection failed.";
+            })
+            .finally(() => {
+                previewButton.disabled = false;
+            });
+    }
+</script>
+
+{% endblock %}
+
+{% block entrypoint %}
+{{ Assets.js("assets/js/pages/challenges.js", theme="admin") }}
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+	{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+{% endblock %}
+
+{% block content %}
+    <div class="jumbotron">
+        <div class="container">
+            <h1>Deploy Details</h1>
+        </div>
+    </div>
+    <div class="container">
+        {% if deployed_challenge %}
+        <div class="row">
+            <div class="col-md-12">
+                <table class="table table-bordered table-striped">
+                    <tr>
+                        <th>ID</th>
+                        <td>{{ deployed_challenge.id }}</td>
+                    </tr>
+                    <tr>
+                        <th>Challenge ID</th>
+                        <td>{{ deployed_challenge.challenge_id }}</td>
+                    </tr>
+                    <tr>
+                        <th>Deploy Status</th>
+                        <td>{{ deployed_challenge.deploy_status if deployed_challenge.deploy_status is not none else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Deploy At</th>
+                        <td>
+                            {{ deployed_challenge.deploy_at.strftime('%Y-%m-%d %H:%M:%S') if deployed_challenge.deploy_at is not none else 'N/A' }}
+                        </td>
+                    </tr>
+                    
+                </table>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Log Content</h3>
+                <div class="form-control" rows="10" readonly style="height: 50vh; overflow: auto;">
+                    {{ log_content|safe if log_content is not none else 'No logs available' }}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-danger" role="alert">
+            No deployment details found for the given ID.
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}

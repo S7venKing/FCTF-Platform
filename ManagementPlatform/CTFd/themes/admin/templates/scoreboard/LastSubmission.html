@@ -1,0 +1,54 @@
+<table id="scoreboard" class="table table-striped border">
+    <thead>
+        <tr>
+            <th class="text-left"><b>Challenge</b></th>
+            <th class="text-left"><b>Team</b></th>
+            <th></th>
+            <th class="text-center"><b>Submission Time</b></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if last_submission %}
+            {% for submission in last_submission %}
+                <tr name="{{ submission.team_id }}" data-href="{{ url_for('admin.teams_detail', team_id=submission.team_id) }}">
+                    <td class="team-name" value="{{ submission.challenge_name }}">
+                        <span class="d-block text-muted">
+                            {% if submission.challenge_name %}
+                                {{ submission.challenge_name | truncate(20) }}
+                            {% endif %}
+                        </span>
+                    </td>
+    
+                    <td class="team-name" value="{{ submission.team_name }}">
+                        <a href="{{ url_for('admin.teams_detail', team_id=submission.team_id) }}">
+                            {{ submission.team_name | truncate(32) }}
+                        </a>
+                        <span class="d-block text-muted">
+                            <small>
+                                {% if submission.affiliation %}
+                                    {{ submission.affiliation | truncate(20) }}
+                                {% endif %}
+                            </small>
+                        </span>
+                    </td>
+    
+                    <td class="team-country text-center">
+                        <span>
+                            {% if submission.country %}
+                                <i class="flag-{{ submission.country.lower() }}"></i>
+                                <small>{{ lookup_country_code(submission.country) }}</small>
+                            {% endif %}
+                        </span>
+                    </td>
+    
+                    <td class="text-center">{{ submission.submission_time }}</td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="4" class="text-center">No submissions yet.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+    
+</table>

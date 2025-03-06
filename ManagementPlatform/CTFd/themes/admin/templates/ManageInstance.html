@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+    {{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>Manage Instance</h1>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12 table-responsive">
+            <div>
+                <table id="challenges" class="table table-striped border">
+                    <thead>
+                        <tr>
+                            <th class="d-block border-right border-bottom text-center" data-checkbox>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" autocomplete="off" data-checkbox-all />&nbsp;
+                                </div>
+                            </th>
+                            <th class="sort-col text-center"><b>ID</b></th>
+                            <th class="sort-col"><b>Team</b></th>
+                            <th class="sort-col text-center"><b>Challenge</b></th>
+                            <th class="sort-col text-center"><b>Connection Info</b></th>
+                            <th class="sort-col text-center"><b>Start-Up Time</b></th>
+                            
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">
+                                No instances running.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{%endblock%}

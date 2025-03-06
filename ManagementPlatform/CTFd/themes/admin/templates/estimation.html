@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="jumbotron">
+        <div class="container">
+            <h1>Estimate</h1>
+        </div>
+    </div>
+    <div id="performanceEstimate" class="mt-4">
+        <div class="card">
+           
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="performanceTeamCount" class="form-label">Number of Teams</label>
+                        <input type="number" class="form-control" id="performanceTeamCount" name="team_count" required value="{{ team_count or '' }}">
+                    </div>
+                    <button type="submit" class="btn text-white btn-primary w-100">Estimate</button>
+                </form>
+
+                {% if response %}
+                <div class="mt-4">
+                    <p><strong>Message:</strong></p>
+                    <pre>{{ response.message }}</pre>
+
+                    <p><strong>Performance Recommendations:</strong></p>
+                    <ul class="list-group">
+                        <li class="list-group-item"><strong>Minimum RAM Usage:</strong> {{ response.minRAMUsageNeed }} GB</li>
+                        <li class="list-group-item"><strong>Minimum CPU Usage:</strong> {{ response.minCPUUsageNeed }} Cores</li>
+                        <li class="list-group-item"><strong>Recommended RAM Usage:</strong> {{ response.recommendRAMUsageNeed }} GB</li>
+                        <li class="list-group-item"><strong>Recommended CPU Usage:</strong> {{ response.recommendCPUUsageNeed }} Cores</li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

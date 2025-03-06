@@ -1,0 +1,11 @@
+STATUS = {
+    "CREATED",
+    "DEPLOYING",
+    "FILE_UPLOAD_FAILED",
+    "DEPLOY_FAILED",
+    "PENDING_DEPLOY",
+    "DEPLOY_SUCCESS",
+    "REVIEWING",
+    "ACCEPTED",
+    "REJECTED",
+}

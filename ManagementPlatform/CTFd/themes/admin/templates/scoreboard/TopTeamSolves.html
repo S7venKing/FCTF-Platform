@@ -1,0 +1,51 @@
+<table id="scoreboard" class="table table-striped border">
+	<thead>
+		<tr>
+			<th class="border-right" data-checkbox>
+				<div class="form-check text-center">
+					<input type="checkbox" class="form-check-input" id="scoreboard-bulk-select" autocomplete="off" data-checkbox-all>&nbsp;
+				</div>
+			</th>
+			<th class="sort-col text-center"><b>Team ID</b></th>
+			
+			<th class="sort-col"><b>Team Name</b></th>
+            <th><b>Hidden</b></th>
+            <th><b>Banned</b></th>
+			<th class="sort-col"><b>Solves Count</b></th>
+		</tr>
+	</thead>
+	<tbody>
+        {% for team in top_solves %}
+
+        <tr name="{{ team.team_id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
+            <td></td>
+            <td class="team-id text-center" value="{{ team.team_id }}">{{ team.team_id }}</td>
+            <td class="team-name" value="{{ team.team_name }}">
+                <a href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
+                    {{ team.team_name| truncate(32) }}
+                </a>
+                <span class="d-block text-muted">
+                    <small>
+                        {% if team.affiliation %}
+                            {{ team.affiliation | truncate(20) }}
+                        {% endif %}
+                    </small>
+                </span>
+            </td>
+            
+            <td class="team-hidden d-md-table-cell d-lg-table-cell text-center">
+                {% if team.hidden %}
+                    <span class="badge badge-danger">hidden</span>
+                {% endif %}
+            </td>
+
+            <td class="team-banned d-md-table-cell d-lg-table-cell text-center">
+                {% if team.banned %}
+                    <span class="badge badge-danger">banned</span>
+                {% endif %}
+            </td>
+            <td>{{team.solved_challenges_count}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

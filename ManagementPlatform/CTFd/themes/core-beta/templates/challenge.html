@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+  <div class="container">
+    <h1>{% trans %}Challenges{% endtrans %}</h1>
+  </div>
+</div>
+
+<div class="container">
+  <div :class="getStyles()" role="document" x-data="Challenge" x-init="initialize({{ challenge.id }})">
+    <div class="modal-content">
+      <div class="modal-body py-4 px-4 px-sm-5">
+        <div>
+          <ul class="nav nav-tabs">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-target="#challenge" @click="showChallenge()">
+                {% trans %}Challenge{% endtrans %}
+              </button>
+            </li>
+            {% block solves %}
+            <li class="nav-item">
+              <button class="nav-link challenge-solves" data-bs-target="#solves" @click="showSolves()">
+                {% if solves is not none %}
+                {{ ngettext("%(num)d Solve", "%(num)d Solves", solves|length) }}
+                {% endif %}
+              </button>
+            </li>
+            {% endblock %}
+          </ul>
+        </div>
+
+        <div class="result"></div>
+        <div>
+          <div class="tab-content">
+            <div role="tabpanel" class="tab-pane fade show active" id="challenge">
+              <h2 class="challenge-name text-center pt-3">{{ challenge.name }}</h2>
+              <h3 class="challenge-value text-center">{{ challenge.value }}</h3>
+              <h3 class="challenge-value text-center " id="timer">{{ remaining_time_minutes }}</h3>
+
+
+
+              {% if challenge.connection_info %}
+              <button type="submit" class="btn btn-danger" id="btn-stop">
+                {% trans %}Stop Challenge{% endtrans %}
+              </button>
+              {% else %}
+              <button type="submit" class="btn btn-success" id="btn-start">
+                {% trans %}Start Challenge{% endtrans %}
+              </button>
+              {% endif %}
+
+              {% if tags %}
+              <div class="challenge-tags text-center pt-2 pb-3">
+                {% block tags %}
+                {% for tag in tags %}
+                <span class="challenge-tag badge bg-info">{{ tag }}</span>
+                {% endfor %}
+                {% endblock %}
+              </div>
+              {% endif %}
+
+              <span class="challenge-desc">{% block description %}{{ challenge.html }}{% endblock %}</span>
+
+              {% if challenge.connection_info %}
+              <div class="mb-2">
+                <span class="challenge-connection-info">
+                  {% block connection_info %}
+                  {% set conn = challenge.connection_info %}
+                  {% if conn.startswith("http") %}
+                  {{ conn | urlize(target="_blank") }}
+                  {% else %}
+                  <code>{{ conn }}</code>
+                  {% endif %}
+                  {% endblock %}
+                </span>
+              </div>
+              {% endif %}
+
+              {% if hints %}
+              <div class="challenge-hints hint-row row">
+                <div class="col-12 mb-3">
+                  {% for hint in hints | sort(attribute="cost") %}
+                  <div x-data="Hint" x-init="id = {{ hint.id }}">
+                    {% if hint.content %}
+                    <details>
+                      <summary>{% trans %}View Hint{% endtrans %}</summary>
+                      <div>{{ hint.html | safe }}</div>
+                    </details>
+                    {% else %}
+                    <details @toggle="showHint(event)">
+                      <summary>Unlock Hint for {{ hint.cost }} point{{ hint.cost|pluralize }}</summary>
+                      <div x-html="html"></div>
+                    </details>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+
+              {% if files %}
+              <div class="row challenge-files text-center pb-3">
+                {% for file in files %}
+                <div class="col-md-4 col-sm-4 col-xs-12 file-button-wrapper d-block">
+                  {% set segments = file.split('/') %}
+                  {% set token = file.split('?') | last %}
+                  {% if token %}
+                  {% set filename = segments | last | replace("?" + token, "") %}
+                  {% else %}
+                  {% set filename = segments | last %}
+                  {% endif %}
+                  <a class="btn btn-info btn-file mb-1 d-inline-block px-2 w-100 text-truncate" href="{{ file }}"
+                    title="{{ filename }}">
+                    <i class="fas fa-download"></i>
+                    <small>{{ filename }}</small>
+                  </a>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+
+              {% if max_attempts > 0 %}
+              <div class="row text-center">
+                <div class="col-12">
+                  <p>{{ attempts }}/{{ max_attempts }} attempt{{ max_attempts|pluralize }}</p>
+                </div>
+              </div>
+              {% endif %}
+
+              <div class="row submit-row">
+                <div class="col-12 col-sm-8">
+                  {% block input %}
+                  <input id="challenge-id" class="challenge-id" type="hidden" value="{{ challenge.id }}">
+                  <input id="challenge-input" class="challenge-input form-control" type="text" name="submission"
+                    @keyup.enter="submitChallenge()" placeholder="{% trans %}Flag{% endtrans %}" x-model="submission">
+                  {% endblock %}
+                </div>
+
+                <div class="col-12 col-sm-4 mt-3 mt-sm-0 key-submit">
+                  {% block submit %}
+                  <button id="challenge-submit" class="challenge-submit btn btn-outline-secondary w-100 h-100"
+                    type="submit" @click.debounce.500ms="submitChallenge()">
+                    {% trans %}Submit{% endtrans %}
+                  </button>
+                  {% endblock %}
+                </div>
+              </div>
+
+              <div class="row notification-row">
+                <div class="col-12">
+                  <template x-if="response">
+                    <div :class="{
+                        'alert text-center w-100 mt-3 alert-success': response.data.status == 'correct',
+                        'alert text-center w-100 mt-3 alert-info': response.data.status == 'already_solved',
+                        'alert text-center w-100 mt-3 alert-danger': response.data.status == 'incorrect',
+                      }" role="alert">
+                      <strong x-text="response.data.message"></strong>
+                      <div x-show="(response.data.status == 'correct' || response.data.status == 'already_solved')">
+                        <div x-show="getNextId()">
+                          <button @click="nextChallenge()" class="btn btn-info mt-3">{% trans %}Next Challenge{%
+                            endtrans %}</button>
+                        </div>
+                        {% if Configs.social_shares %}
+                        <div>
+                          <button x-show="!share_url" @click="getShareUrl()" class="btn btn-sm btn-outline-info mt-3">{%
+                            trans %}Share{% endtrans %}</button>
+                          <div class="btn-group mt-3" role="group" x-show="share_url">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @click="copyShareUrl()"
+                              data-bs-toggle="tooltip" data-bs-title="Copied!">
+                              <i class="fa-solid fa-copy"></i>
+                            </button>
+                            <a :href="'https://twitter.com/intent/tweet?url=' + encodeURIComponent(share_url)"
+                              role="button" class="btn btn-sm btn-outline-secondary" target="_blank">
+                              <i class="fa-brands fa-twitter"></i>
+                            </a>
+                            <a :href="'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(share_url)"
+                              role="button" class="btn btn-sm btn-outline-secondary" target="_blank">
+                              <i class="fa-brands fa-facebook-f"></i>
+                            </a>
+                            <a :href="'http://www.linkedin.com/shareArticle?url=' + encodeURIComponent(share_url)"
+                              role="button" class="btn btn-sm btn-outline-secondary" target="_blank">
+                              <i class="fa-brands fa-linkedin-in"></i>
+                            </a>
+                          </div>
+                        </div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
+{% block scripts %}
+{{ Assets.js("assets/js/challenges.js") }}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+  let timerInterval;
+  let timeLimit;
+  const user_id = '{{Team.id}}';
+  const IsStart = "{{ challenge.connection_info }}" !== 'None'; // Check if challenge already started
+
+  $(document).ready(() => {
+    // Initialize based on the challenge status
+    if (IsStart) {
+      startChallenge();
+    }
+
+    $("#btn-start").click(() => {
+      const pathParts = window.location.pathname.split('/');
+      const challengeId = pathParts[pathParts.length - 1];
+      if (!challengeId) {
+        console.error("Missing challenge ID");
+        $(".result").html("<p>Error: Missing challenge ID.</p>");
+        return;
+      }
+
+      const api_start = '/api/challenge/start';
+      const cstf = "{{Session.nonce}}";
+
+      $.ajax({
+        url: api_start,
+        type: 'POST',
+        data: JSON.stringify({ 'team_id': user_id, 'challenge_id': challengeId }),
+        headers: {
+          'CSRF-Token': cstf,
+          'X-CSRF': cstf
+        },
+        xhrFields: {
+          withCredentials: true
+        },
+        contentType: "application/json",
+        dataType: "json",
+        success: function (data) {
+          console.log("API Success:", data);
+          const connectionInfoElement = document.querySelector(".challenge-connection-info");
+
+          if (data.challenge_url != null) {
+            if (!connectionInfoElement) {
+              console.warn("Element '.challenge-connection-info' not found initially; re-checking in 100ms.");
+              setTimeout(() => {
+                const retryElement = document.querySelector(".challenge-connection-info");
+                if (retryElement) {
+                  retryElement.innerText = data.challenge_url;
+                  window.open(data.challenge_url, '_blank');
+                  startChallenge();
+                } else {
+                  console.error("Still unable to find '.challenge-connection-info' element.");
+                }
+              }, 100);
+            } else {
+              connectionInfoElement.innerText = data.challenge_url; // Update the UI with the challenge URL
+              window.open(data.challenge_url, '_blank'); // Open challenge URL
+              startChallenge(); // Start the countdown timer
+            }
+          }
+        },
+        error: function (xhr, status, error) {
+          $(".result").html("<p>Error starting challenge.</p>");
+          console.log("API Error:", error);
+        }
+      });
+    });
+  });
+
+  function startChallenge() {
+    console.log("Starting challenge...");
+    const endTime = "{{ time_limit_timestamp }}";
+    const currentTime = Math.floor(Date.now() / 1000);
+    timeLimit = endTime - currentTime;
+
+    if (timeLimit <= 0) {
+      alert("Time limit has expired.");
+      return;
+    }
+
+    updateTimerDisplay(); // Update timer display immediately
+    clearInterval(timerInterval); // Clear any existing timer to avoid duplicate intervals
+    timerInterval = setInterval(() => {
+      if (timeLimit > 0) {
+        timeLimit--; // Decrement time limit
+        updateTimerDisplay(); // Update display
+      } else {
+        clearInterval(timerInterval);
+        alert("Time's up!");
+        resetButtons(); // Reset button states
+      }
+    }, 1000); // Update every second
+
+    // Change button visibility
+    $("#btn-start").addClass('d-none'); // Hide start button
+    $("#btn-stop").removeClass('d-none'); // Show stop button
+  }
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(timeLimit / 60);
+    const seconds = timeLimit % 60;
+    document.querySelector('#timer').textContent = `Remaining Time: ${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
+  }
+
+  function stopChallenge() {
+    clearInterval(timerInterval); // Stop timer
+    timerInterval = null;
+    resetButtons(); // Reset buttons
+
+    // Display remaining time (for example, the last state)
+    document.querySelector('#timer').textContent = "Timer stopped.";
+  }
+
+  function resetButtons() {
+    $("#btn-start").removeClass('d-none'); // Show start button
+    $("#btn-stop").addClass('d-none'); // Hide stop button
+  }
+
+  // Initialize based on the challenge status
+  $(document).ready(() => {
+    if (IsStart) {
+      startChallenge();
+    }
+  });
+
+
+</script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+{% endblock %}
