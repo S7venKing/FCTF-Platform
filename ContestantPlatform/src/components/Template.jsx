@@ -1,16 +1,22 @@
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { FaBell, FaFlag, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { FaRankingStar } from "react-icons/fa6";
 import { IoTicket } from "react-icons/io5";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { API_GET_NOTIFICATION, BASE_URL } from "../constants/ApiConstant";
 import { ACCESS_TOKEN_KEY } from "../constants/LocalStorageKey";
 import ApiHelper from "../utils/ApiHelper";
 import CornerBorderBox from "../components/ConnerBorderBox";
 import { useParams } from "react-router-dom";
+import ActionLogs from "../components/action_logs/ActionLogComponent";
+import { ActionLogsContext } from "../App";
+import PixiMap from "../components/map/PixiMap";
+import { useUser } from '../components/contexts/UserContext';
+import { io } from "socket.io-client";
 
 const Template = ({ children, title }) => {
+  const { logout } = useUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -18,8 +24,9 @@ const Template = ({ children, title }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
   const { categoryName } = useParams();
-
   const navigate = useNavigate();
+  const activityLogs = useContext(ActionLogsContext);
+  const location = useLocation();
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -95,8 +102,16 @@ const Template = ({ children, title }) => {
 
   const handleLogout = () => {
     console.log("Logout button clicked");
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    navigate("/login");
+    if (typeof logout === "function") {
+      logout();
+      try {
+        navigate("/login");
+      } catch (error) {
+        console.error("Navigation failed:", error);
+      }
+    } else {
+      console.error("Logout function is not defined.");
+    }
   };
 
   useEffect(() => {
@@ -108,6 +123,26 @@ const Template = ({ children, title }) => {
   const handleLogoClick = () => {
     navigate("/");
   };
+
+  useEffect(() => {
+    const socket = io(BASE_URL, {
+      auth: {
+        token: localStorage.getItem(ACCESS_TOKEN_KEY),
+      },
+    });
+
+    socket.on("connect", () => {
+      console.log("Connected to server");
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const menuItems = [
     { title: "Challenges", icon: <FaFlag />, url: "/topics" },
@@ -128,6 +163,7 @@ const Template = ({ children, title }) => {
       ),
       onClick: () => setIsNotificationOpen(!isNotificationOpen),
     },
+    { title: "Activity", icon: <FaFlag />, url: "/actions_logs" },
     { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
   ];
 
@@ -137,36 +173,24 @@ const Template = ({ children, title }) => {
         <div className="h-screen max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center h-16">
             <div className="flex-shrink-0 w-full" onClick={handleLogoClick}>
-              <img
-                className="h-20 w-auto theme-color-primary"
-                src="/fctf-logo.png"
-                alt="Logo"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/fctf-logo.png";
-                }}
+              <img className="h-20 w-auto theme-color-primary" src="/fctf-logo.png" alt="Logo" onError={(e) => {
+                e.target.onerror = null; e.target.src = "/fctf-logo.png";
+              }}
               />
             </div>
           </div>
-          <div
-            className="flex flex-col flex-grow mt-5 flex-shrink-0"
-            style={{ flex: 1 }}
-          >
+          <div className="flex flex-col flex-grow mt-5 flex-shrink-0" style={{ flex: 1 }} >
             <CornerBorderBox>
-              <div
-                className="relative mt-3 p-3 flex flex-wrap items-center justify-center max-w-7xl mx-auto"
-                style={{ flex: 1 }}
-              >
+              <div className="relative mt-3 p-3 flex flex-wrap items-center justify-center max-w-7xl mx-auto" style={{ flex: 1 }}>
                 {menuItems.map((item, index) => (
                   <div key={index} className="relative">
-                    <button
-                      onClick={() => {
-                        if (item.onClick) {
-                          item.onClick();
-                        } else {
-                          navigate(item.url);
-                        }
-                      }}
+                    <button onClick={() => {
+                      if (item.onClick) {
+                        item.onClick();
+                      } else {
+                        navigate(item.url);
+                      }
+                    }}
                       className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-theme-color-gray hover:text-theme-color-primary-dark hover:bg-primary-low transition-all duration-300"
                     >
                       <span className="mr-2 text-3xl">{item.icon}</span>
@@ -178,11 +202,10 @@ const Template = ({ children, title }) => {
                           currentNotifications.map((notification) => (
                             <div
                               key={notification.id}
-                              className={`px-4 py-3 cursor-pointer transition-all duration-300 ${
-                                notification.isRead
-                                  ? "bg-gray-100"
-                                  : "hover:bg-gray-50"
-                              }`}
+                              className={`px-4 py-3 cursor-pointer transition-all duration-300 ${notification.isRead
+                                ? "bg-gray-100"
+                                : "hover:bg-gray-50"
+                                }`}
                               onClick={() => markAsRead(notification.id)}
                             >
                               <div className="flex justify-between items-start">
@@ -228,7 +251,6 @@ const Template = ({ children, title }) => {
                 ))}
               </div>
             </CornerBorderBox>
-
             <CornerBorderBox>
               <div
                 className="overflow-y-auto w-full justify-center italic text-white"
@@ -237,11 +259,7 @@ const Template = ({ children, title }) => {
                 <h1 className="text-2xl italic font-bold text-white text-center mt-4">
                   Activity
                 </h1>
-                <div className="break-words">
-                  <p className="break-words w-48">
-                    rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
-                  </p>
-                </div>
+                <ActionLogs logs={activityLogs} />
               </div>
             </CornerBorderBox>
 
@@ -292,8 +310,8 @@ const Template = ({ children, title }) => {
             {title || categoryName || "Home Page"}
           </h1>
         </CornerBorderBox>
-        <div className="bg-secondary font-primary italic w-full mx-auto text-primary">
-          {children}
+        <div className="bg-secondary font-primary italic w-full mx-auto text-primary flex-grow p-5">
+          {location.pathname === "/actions_logs" ? <PixiMap /> : children}
         </div>
       </main>
     </div>

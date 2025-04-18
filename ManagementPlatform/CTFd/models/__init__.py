@@ -411,6 +411,7 @@ class ActionLogs(db.Model):
     actionDate = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     actionType = db.Column(db.Integer, nullable=False)
     actionDetail = db.Column(db.String(255), nullable=False)
+    topicName = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
         return {
@@ -418,7 +419,8 @@ class ActionLogs(db.Model):
             "userId": self.userId,
             "actionDate": self.actionDate.isoformat(),
             "actionType": self.actionType,
-            "actionDetail": self.actionDetail
+            "actionDetail": self.actionDetail,
+            "topicName": self.topicName
         }
     # Relationship with Users
     user = db.relationship(
@@ -428,11 +430,12 @@ class ActionLogs(db.Model):
         backref=db.backref("action_logs", lazy="dynamic")
     )
 
-    def __init__(self, userId, actionType, actionDetail, actionDate=None):
+    def __init__(self, userId, actionType, actionDetail, actionDate=None, topicName = ""):
         self.userId = userId
         self.actionType = actionType
         self.actionDetail = actionDetail
         self.actionDate = actionDate or datetime.datetime.utcnow()
+        self.topicName = topicName
 
     def __repr__(self):
         return f"<ActionLogs(actionId={self.actionId}, userId={self.userId}, actionType={self.actionType})>"

@@ -5,18 +5,18 @@ import sys, inspect
 import threading
 import time
 import weakref
-from distutils.version import StrictVersion 
-from flask_socketio import SocketIO, send
+from distutils.version import StrictVersion
+from flask_socketio import SocketIO, emit
 from flask_caching import Cache
 import jinja2
-from flask import Flask, Request
+from flask import Flask, Request, request
 from flask_babel import Babel
 from flask_migrate import upgrade
 from jinja2 import FileSystemLoader
 from jinja2.sandbox import SandboxedEnvironment
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import safe_join
-from flask_cors import CORS  
+from flask_cors import CORS
 import CTFd.utils.config
 from CTFd import utils
 from CTFd.constants.themes import ADMIN_THEME, DEFAULT_THEME
@@ -37,6 +37,8 @@ from CTFd.utils.user import get_locale
 
 __version__ = "3.7.3"
 __channel__ = "oss"
+socketio = SocketIO(cors_allowed_origins="*")
+user_sessions = {}
 
 
 class CTFdRequest(Request):
@@ -163,7 +165,6 @@ def run_upgrade():
 
 def create_app(config="CTFd.config.Config"):
     app = CTFdFlask(__name__)
-    socketio = SocketIO(app, cors_allowed_origins="*")
     # Lấy thông tin dòng và file hiện tại
     current_frame = inspect.currentframe()
     current_line = current_frame.f_lineno
@@ -179,6 +180,13 @@ def create_app(config="CTFd.config.Config"):
 
         from CTFd.cache import cache
         from CTFd.utils import import_in_progress
+        from CTFd.utils.maps import (
+            add_character_to_map,
+            characters_on_map,
+            remove_character_from_map,
+            handle_request_all_characters,
+        )
+        from datetime import datetime
 
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
@@ -208,7 +216,6 @@ def create_app(config="CTFd.config.Config"):
         loaders.append(jinja2.DictLoader(app.overridden_templates))
         # A `ThemeLoader` with no `theme_name` will load from the current theme
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
@@ -216,7 +223,7 @@ def create_app(config="CTFd.config.Config"):
 
         print(f"File: {current_file}, current_line: {current_line}")
         socketio.init_app(app)
-        
+
         loaders.append(ThemeLoader())
         # If `THEME_FALLBACK` is set and true, we add another loader which will
         # load from the `DEFAULT_THEME` - this mirrors the order implemented by
@@ -255,7 +262,6 @@ def create_app(config="CTFd.config.Config"):
 
         url = create_database()
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
@@ -269,7 +275,6 @@ def create_app(config="CTFd.config.Config"):
         # Register database
         db.init_app(app)
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
@@ -282,7 +287,6 @@ def create_app(config="CTFd.config.Config"):
         babel = Babel()
         babel.locale_selector_func = get_locale
         babel.init_app(app)
-
 
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
@@ -320,7 +324,6 @@ def create_app(config="CTFd.config.Config"):
         app.VERSION = __version__
         app.CHANNEL = __channel__
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
@@ -354,18 +357,16 @@ def create_app(config="CTFd.config.Config"):
 
         update_check(force=True)
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
         current_file = inspect.getfile(current_frame)
 
         print(f"File: {current_file}, current_line: {current_line}")
-        
+
         init_request_processors(app)
         init_template_filters(app)
         init_template_globals(app)
-
 
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
@@ -393,7 +394,6 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.getTimeFromConfig import get_date_config
         from CTFd.registrationConfig import get_registration_config
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
@@ -418,7 +418,6 @@ def create_app(config="CTFd.config.Config"):
         app.register_blueprint(get_date_config)
         app.register_blueprint(get_registration_config)
 
-
         # Lấy thông tin dòng và file hiện tại
         current_frame = inspect.currentframe()
         current_line = current_frame.f_lineno
@@ -439,6 +438,102 @@ def create_app(config="CTFd.config.Config"):
         init_events(app)
         init_plugins(app)
         init_cli(app)
+
+        @socketio.on("connect")
+        def handle_connect():
+            print(f"Client connected - SID: {request.sid}")
+            print(f"Auth token: {request.headers.get('Authorization')}")
+            print(f"Query params: {request.args}")
+            emit("connection-response", {"status": "connected"})
+            handle_request_all_characters()
+
+        @socketio.on("disconnect")
+        def handle_disconnect():
+            for user_id, sid in list(user_sessions.items()):
+                if sid == request.sid:
+                    del user_sessions[user_id]
+                    print(f"User {user_id} disconnected")
+                    break
+
+        @socketio.on("login")
+        def handle_login(data):
+            try:
+                user_id = data.get("id")
+                if not user_id:
+                    emit("login-error", {"error": "Missing user ID"}, room=request.sid)
+                    return
+
+                if user_id in user_sessions:
+                    old_sid = user_sessions[user_id]
+                    emit(
+                        "force-logout",
+                        {"message": "Bạn đã đăng nhập trên thiết bị khác."},
+                        room=old_sid,
+                    )
+                    print(f"Force logout user {user_id} from session {old_sid}")
+
+                user_sessions[user_id] = request.sid
+                print(f"User {user_id} logged in on {request.sid}")
+
+                character_data = {
+                    "id": user_id,
+                    "name": data.get("name"),
+                    "team": data.get("team", "No team"),
+                    "position": data.get("position", {}),
+                }
+                add_result = add_character_to_map(character_data)
+
+                if add_result["status"] != "success":
+                    emit("login-error", {"error": add_result["message"]})
+                    return
+
+                emit(
+                    "login-success",
+                    {
+                        "status": "success",
+                        "message": "Đăng nhập thành công",
+                        "user_id": user_id,
+                        "character": add_result["data"],
+                    },
+                )
+
+                emit(
+                    "user-login-notification",
+                    {
+                        "id": user_id,
+                        "name": data.get("name"),
+                        "team": data.get("team", "No team"),
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                    },
+                    broadcast=True,
+                    namespace="/",
+                )
+
+            except Exception as e:
+                print(f"Login error: {str(e)}")
+                emit("login-error", {"error": str(e)})
+
+        @socketio.on("logout")
+        def handle_logout(data):
+            try:
+                user_id = data.get("userId")
+                if not user_id:
+                    return {"status": "error", "message": "Missing user ID"}
+
+                if user_id in user_sessions:
+                    del user_sessions.pop[user_id]
+
+                remove_result = remove_character_from_map(user_id)
+
+                if remove_result["status"] != "success":
+                    print(
+                        f"Failed to remove character for user {user_id}: {remove_result.get('message')}"
+                    )
+
+            except Exception as e:
+                print(f"Logout error: {str(e)}")
+                return {"status": "error", "message": str(e)}
 
         return app
 

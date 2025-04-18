@@ -85,7 +85,7 @@ const HomePage = () => {
   const TimeUnit = ({ value, label, icon }) => (
     <div
       className="flex flex-col items-center p-4 bg-white rounded-lg shadow-lg m-2 min-w-[120px] hover:shadow-xl transition-shadow duration-300 ease-in-out"
-      whileHover={{ scale: 1.05 }}
+      whilehover={{ scale: 1.05 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
