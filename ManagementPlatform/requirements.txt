@@ -35,7 +35,7 @@ certifi==2022.12.7
     #   pybluemonday
 charset-normalizer==2.0.12
     # via requests
-click==7.1.2
+click==8.0.0
     # via flask
 cmarkgfm==2022.10.27
     # via -r requirements.in
@@ -43,7 +43,7 @@ cryptography==40.0.2
     # via pymysql
 dataset==1.6.2
     # via -r requirements.in
-flask==2.0.3
+flask==2.2.5
     # via
     #   -r requirements.in
     #   flask-babel
@@ -166,7 +166,7 @@ urllib3==1.25.11
     # via
     #   botocore
     #   requests
-werkzeug==2.0.3
+werkzeug==2.2.3
     # via
     #   -r requirements.in
     #   flask

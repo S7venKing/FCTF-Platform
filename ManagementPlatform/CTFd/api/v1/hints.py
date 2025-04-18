@@ -1,4 +1,4 @@
-from crypt import methods
+from passlib.hash import pbkdf2_sha256 as crypt
 import logging
 from typing import List
 

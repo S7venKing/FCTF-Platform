@@ -1,6 +1,16 @@
 from flask import Blueprint, request, jsonify, session
 from CTFd.cache import clear_team_session, clear_user_session
-from CTFd.models import Brackets, TeamFieldEntries, TeamFields, Tokens, UserFieldEntries, UserFields, Users, Teams, db
+from CTFd.models import (
+    Brackets,
+    TeamFieldEntries,
+    TeamFields,
+    Tokens,
+    UserFieldEntries,
+    UserFields,
+    Users,
+    Teams,
+    db,
+)
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.crypto import verify_password, hash_password
 from datetime import datetime, timedelta
@@ -15,6 +25,9 @@ from CTFd.api.v1.users import authenticate_user
 from CTFd.utils.decorators import ratelimit
 from CTFd.constants.config import ConfigTypes, RegistrationVisibilityTypes
 from CTFd.utils.dates import ctftime, ctf_ended
+from datetime import datetime
+from CTFd.utils.maps import add_character_to_map
+
 LoginUser = Blueprint("login", __name__)
 
 
@@ -30,7 +43,7 @@ def login():
         return jsonify({"msg": "Missing username or password"}), 400
 
     user = Users.query.filter_by(name=username).first()
-  
+
     if user and verify_password(password, user.password) and user.type == "user":
         expiration = datetime.now() + timedelta(days=1)
         token = generate_user_token(
@@ -43,8 +56,16 @@ def login():
             session.regenerate()
         session["user_token"] = token.value
         if not team:
-            return jsonify({"message": "you don't have a team yet", "generatedToken": token.value}),400
-            
+            return (
+                jsonify(
+                    {
+                        "message": "you don't have a team yet",
+                        "generatedToken": token.value,
+                    }
+                ),
+                400,
+            )
+
         user_data = {
             "id": user.id,
             "username": user.name,
@@ -58,6 +79,16 @@ def login():
                 else None
             ),
         }
+
+        add_character_to_map(
+            {
+                "id": user.id,
+                "name": user.name,
+                "team": team.name if team else "No team",
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "date": datetime.now().strftime("%Y-%m-%d"),
+            }
+        )
 
         return jsonify({"generatedToken": token.value, "user": user_data}), 200
 
@@ -74,7 +105,7 @@ def change_password():
     if not current_password or not new_password:
         return jsonify({"msg": "Missing current or new password"}), 400
 
-    tokens = Tokens.query.filter_by(value =token).first_or_404()
+    tokens = Tokens.query.filter_by(value=token).first_or_404()
     user = Users.query.filter_by(id=tokens.user_id).first()
 
     if user and verify_password(current_password, user.password):
@@ -98,6 +129,7 @@ def change_password():
     else:
         return jsonify({"msg": "Current password is incorrect"}), 401
 
+
 def validate_email(email, email_regex):
     return bool(re.match(email, email_regex))
 
@@ -106,10 +138,18 @@ def validate_email(email, email_regex):
 @bypass_csrf_protection
 def register():
     try:
-        register_config= get_config(ConfigTypes.REGISTRATION_VISIBILITY)
-        if(register_config== RegistrationVisibilityTypes.PRIVATE):
-            return jsonify({"success": False, "message": "You are not allowed to register at this time."}), 400
-        
+        register_config = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
+        if register_config == RegistrationVisibilityTypes.PRIVATE:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "You are not allowed to register at this time.",
+                    }
+                ),
+                400,
+            )
+
         data = request.form.to_dict()
         username = data.get("username")
         email = data.get("email")
@@ -120,7 +160,15 @@ def register():
         print(password)
 
         if not username or not password or not email:
-            return jsonify({"success": False, "message": "Missing one or more required fields!"}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Missing one or more required fields!",
+                    }
+                ),
+                400,
+            )
 
         # Check if username or email already exists
         users = Users.query.filter_by(name=username).first()
@@ -130,18 +178,44 @@ def register():
 
         # Validate email
         if not re.match(email_regex, email):
-            return jsonify({"success": False, "message": "Email does not match the required format"}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Email does not match the required format",
+                    }
+                ),
+                400,
+            )
 
         # Validate password
         if not validate_password(password):
-            return jsonify({"success": False, "message": "Password does not meet the criteria"}), 400
+            return (
+                jsonify(
+                    {"success": False, "message": "Password does not meet the criteria"}
+                ),
+                400,
+            )
 
         # Check if username or email is already taken
         if users:
-            return jsonify({"success": False, "message": "Username exists! Try a different username"}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Username exists! Try a different username",
+                    }
+                ),
+                400,
+            )
 
         if emails:
-            return jsonify({"success": False, "message": "Email exists! Try a different email"}), 400
+            return (
+                jsonify(
+                    {"success": False, "message": "Email exists! Try a different email"}
+                ),
+                400,
+            )
 
         # Optional fields
         website = data.get("website")
@@ -154,13 +228,19 @@ def register():
             try:
                 validators.validate_country_code(country)
             except ValidationError:
-                return jsonify({"success": False, "message": "Invalid country code"}), 400
+                return (
+                    jsonify({"success": False, "message": "Invalid country code"}),
+                    400,
+                )
 
         if website and not validators.validate_url(website):
             return jsonify({"success": False, "message": "Invalid website URL"}), 400
 
         if affiliation and len(affiliation) >= 128:
-            return jsonify({"success": False, "message": "Affiliation name is too long"}), 400
+            return (
+                jsonify({"success": False, "message": "Affiliation name is too long"}),
+                400,
+            )
 
         if bracket_id:
             bracket = Brackets.query.filter_by(id=bracket_id, type="users").first()
@@ -172,7 +252,15 @@ def register():
         for field_id, field in fields.items():
             value = data.get(f"fields[{field_id}]", "").strip()
             if field.required and not value:
-                return jsonify({"success": False, "message": f"Field '{field.name}' is required"}), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "message": f"Field '{field.name}' is required",
+                        }
+                    ),
+                    400,
+                )
 
             entries[field_id] = bool(value) if field.field_type == "boolean" else value
 
@@ -196,48 +284,88 @@ def register():
 
         # Save custom field entries
         for field_id, value in entries.items():
-            entry = UserFieldEntries(
-                field_id=field_id, value=value, user_id=user.id
-            )
+            entry = UserFieldEntries(field_id=field_id, value=value, user_id=user.id)
             db.session.add(entry)
 
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Contestant registered successfully"}), 201
+        return (
+            jsonify({"success": True, "message": "Contestant registered successfully"}),
+            201,
+        )
 
     except Exception as e:
-        
+
         print(f"Error during registration: {e}")
-        return jsonify({"success": False, "message": "An unexpected error occurred. Please try again later."}), 500
-    
-@LoginUser.route('/api/team/create', methods=['POST', 'GET'])
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": "An unexpected error occurred. Please try again later.",
+                }
+            ),
+            500,
+        )
+
+
+@LoginUser.route("/api/team/create", methods=["POST", "GET"])
 @bypass_csrf_protection
 @require_team_mode
 def create_team():
     errors = []
-    if(ctftime()):
-            return jsonify({'success':False, 'message': 'You are not allowed to join a team at this time'}), 400
-    if(ctf_ended):
-            return jsonify({'success':False, 'message': 'You are not allowed to join a team at this time'}), 400
+    if ctftime():
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": "You are not allowed to join a team at this time",
+                }
+            ),
+            400,
+        )
+    if ctf_ended:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": "You are not allowed to join a team at this time",
+                }
+            ),
+            400,
+        )
     data = request.form.to_dict() or request.get_json()
     user = authenticate_user()
-    
+
     if not user:
         return jsonify({"success": False, "message": "You must log in first"}), 400
 
     if not get_config("team_creation", default=True):
-        return jsonify({
-            "success": False,
-            "errors": ["Team creation is currently disabled. Please join an existing team."]
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "errors": [
+                        "Team creation is currently disabled. Please join an existing team."
+                    ],
+                }
+            ),
+            400,
+        )
 
     num_teams_limit = int(get_config("num_teams", default=0))
     num_teams = Teams.query.filter_by(banned=False, hidden=False).count()
     if num_teams_limit and num_teams >= num_teams_limit:
-        return jsonify({
-            "success": False,
-            "errors": [f"Reached the maximum number of teams ({num_teams_limit}). Please join an existing team."]
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "errors": [
+                        f"Reached the maximum number of teams ({num_teams_limit}). Please join an existing team."
+                    ],
+                }
+            ),
+            400,
+        )
 
     if user.team_id:
         return jsonify({"success": False, "message": "You are already in a team"}), 400
@@ -276,7 +404,9 @@ def create_team():
         except ValidationError:
             errors.append("Invalid country")
     if bracket_id:
-        valid_bracket = Brackets.query.filter_by(id=bracket_id, type="teams").first() is not None
+        valid_bracket = (
+            Brackets.query.filter_by(id=bracket_id, type="teams").first() is not None
+        )
     else:
         valid_bracket = not Brackets.query.filter_by(type="teams").count()
     if not valid_bracket:
@@ -316,67 +446,106 @@ def create_team():
     clear_user_session(user_id=user.id)
     clear_team_session(team_id=team.id)
 
-    return jsonify({
-        "success": True,
-        "message": "Team created successfully",
-        "team_id": team.id
-    }), 201
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": "Team created successfully",
+                "team_id": team.id,
+            }
+        ),
+        201,
+    )
 
-@LoginUser.route('/api/team/join', methods=['GET', 'POST'])
+
+@LoginUser.route("/api/team/join", methods=["GET", "POST"])
 @bypass_csrf_protection
 @require_team_mode
 @ratelimit(method="POST", limit=10, interval=5)
 def joinTeam():
     try:
-        if(ctftime()):
-            return jsonify({'success':False, 'message': 'You are not allowed to join a team at this time'}), 400
-        if(ctf_ended):
-            return jsonify({'success':False, 'message': 'You are not allowed to create a team at this time'}), 400
+        if ctftime():
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "You are not allowed to join a team at this time",
+                    }
+                ),
+                400,
+            )
+        if ctf_ended:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "You are not allowed to create a team at this time",
+                    }
+                ),
+                400,
+            )
 
         data = request.form.to_dict() or request.get_json()
         user = authenticate_user()
         if not user:
-            return jsonify({'success': False, 'message': 'You must login first'}), 400
+            return jsonify({"success": False, "message": "You must login first"}), 400
 
         if user.team_id:
-            return jsonify({'success': False, 'message': 'You are already in a team', "team": user.team_id}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "You are already in a team",
+                        "team": user.team_id,
+                    }
+                ),
+                400,
+            )
 
-        teamname = data.get('teamName', '').strip()
-        password = data.get('teamPassword', '').strip()
+        teamname = data.get("teamName", "").strip()
+        password = data.get("teamPassword", "").strip()
 
         team = Teams.query.filter_by(name=teamname).first()
         if team and verify_password(password, team.password):
-            team_size_limit = get_config('team_size', default=0)
+            team_size_limit = get_config("team_size", default=0)
             if team_size_limit and len(team.members) >= team_size_limit:
-                return jsonify({
-                    'success': False,
-                    'message': f"{team.name} has already reached the team size limit of {team_size_limit}"
-                }), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "message": f"{team.name} has already reached the team size limit of {team_size_limit}",
+                        }
+                    ),
+                    400,
+                )
 
             team.members.append(user)
             db.session.commit()
-            return jsonify({'success': True, 'message': 'Successfully joined the team!', "team": team.name}), 200
-        
-        return jsonify({'success': False, 'message': 'Wrong team name or password'}), 400
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "message": "Successfully joined the team!",
+                        "team": team.name,
+                    }
+                ),
+                200,
+            )
+
+        return (
+            jsonify({"success": False, "message": "Wrong team name or password"}),
+            400,
+        )
 
     except Exception as e:
-        
-        return jsonify({'success': False, 'message': 'An unexpected error occurred', 'error': str(e)}), 500
-    
-    
 
-
-    
-
-    
-    
-
-    
-
-
-
-
-
-
-
-
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": "An unexpected error occurred",
+                    "error": str(e),
+                }
+            ),
+            500,
+        )

@@ -76,9 +76,7 @@ class ApiHelper {
       Object.keys(data).forEach((key) => formData.append(key, data[key]));
       console.log("formData", formData);
       const response = await this.api.post(url, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: {},
       });
       return response.data;
     } catch (error) {

@@ -18,7 +18,7 @@ if args.disable_gevent:
     monkey.patch_all()
 
 # Import not at top of file to allow gevent to monkey patch uninterrupted
-from CTFd import create_app
+from CTFd import socketio, create_app
 
 app = create_app()
 
@@ -40,4 +40,5 @@ if args.profile:
     toolbar.init_app(app)
     print(" * Flask profiling running at http://127.0.0.1:4000/flask-profiler/")
 
-app.run(debug=True, threaded=True, host="127.0.0.1", port=args.port)
+if __name__ == "__main__":
+    socketio.run(app, host="0.0.0.0", port=8000, debug=True)

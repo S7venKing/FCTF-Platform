@@ -51,12 +51,13 @@ const ChallengeDetail = () => {
       setAnswer(event.target.value);
     }
   };
-  const logUserAction = async (actionType, actionDetail) => {
+  const logUserAction = async (actionType, actionDetail, challenge_id) => {
     const api = new ApiHelper(BASE_URL);
     try {
       const response = await api.post(`${API_ACTION_LOGS}`, {
         actionType: actionType,
         actionDetail: actionDetail,
+        challenge_id: challengeId,
       });
       return response;
     } catch (error) {
@@ -66,7 +67,6 @@ const ChallengeDetail = () => {
 
   useEffect(() => {
     const container = descriptionRef.current;
-    console.log(container);
     if (isFetchDetailSuccess) {
       // Gắn sự kiện `change` vào container
       if (container) {
@@ -663,7 +663,7 @@ const ChallengeDetail = () => {
 
     try {
       const data = {
-        challenge_id: challengeId,
+        challengeId: challengeId,
         submission: answer,
         generatedToken: localStorage.getItem("accessToken"),
       };
@@ -724,7 +724,7 @@ const ChallengeDetail = () => {
       Swal.fire({
         title: "No Submission Left!",
         text:
-          error.response?.data?.data.message ||
+          error.response?.data.message ||
           "Error submitting flag. Please try again later.",
         icon: "error",
         confirmButtonText: "OK",

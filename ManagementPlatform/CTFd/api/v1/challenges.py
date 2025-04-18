@@ -68,7 +68,7 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     is_admin,
     is_challenge_writer,
-    is_jury
+    is_jury,
 )
 
 from CTFd.plugins import bypass_csrf_protection
@@ -103,6 +103,7 @@ challenges_namespace.schema_model(
 redis_client = redis.StrictRedis(
     host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
 )
+
 
 @challenges_namespace.route("")
 class ChallengeList(Resource):
@@ -349,7 +350,12 @@ class Challenge(Resource):
                     solve_ids = []
                 solve_ids = {value for value, in solve_ids}
                 prereqs = set(requirements).intersection(all_challenge_ids)
-                if solve_ids >= prereqs or is_admin() or is_challenge_writer() or is_jury():
+                if (
+                    solve_ids >= prereqs
+                    or is_admin()
+                    or is_challenge_writer()
+                    or is_jury()
+                ):
                     pass
                 else:
                     if anonymize:
@@ -486,14 +492,14 @@ class Challenge(Resource):
         schema = ChallengeSchema()
         data["user_id"] = session["id"]
         response = schema.load(data)
-        
+
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
         user_id = session["id"]
         user = Users.query.filter_by(id=user_id).first()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-        
+
         # Debugging logs
         print(f"Challenge user_id: {challenge.user_id}")
         print(f"Current user's user_id: {user_id}")
@@ -502,7 +508,10 @@ class Challenge(Resource):
             pass
         elif user.type == "challenge_writer":
             if challenge.user_id != user_id:
-                return {"success": False, "error": "You are not authorized to update this challenge."}, 403
+                return {
+                    "success": False,
+                    "error": "You are not authorized to update this challenge.",
+                }, 403
         else:
             return {"success": False, "error": "Unauthorized user type."}, 403
 
@@ -514,7 +523,6 @@ class Challenge(Resource):
         clear_challenges()
 
         return {"success": True, "data": response}
-
 
     @admin_or_challenge_writer_only_or_jury
     @challenges_namespace.doc(
@@ -565,7 +573,6 @@ def get_token_from_header():
     return None
 
 
-
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):
     @during_ctf_time_only
@@ -576,11 +583,14 @@ class ChallengeAttempt(Resource):
         if not auth_header:
             return jsonify({"message": "Authorization missing"}), 403
 
-        request_data = request.get_json() or request.form.to_dict()
-        if request_data == request.get_json():
-            challenge_id = request_data["challenge_id"]
+        if request.is_json:
+            request_data = request.get_json()
         else:
-            challenge_id = request_data.get("challenge_id")
+            request_data = request.form
+
+        challenge_id = request_data.get("challengeId") or request_data.get(
+            "challenge_id"
+        )
 
         # Kiểm tra nếu dữ liệu cache không tồn tại
         token = Tokens.query.filter_by(value=auth_header).first()
@@ -609,7 +619,11 @@ class ChallengeAttempt(Resource):
 
         # Xóa dữ liệu cache để ngăn người dùng gửi lại mà không cần kiểm tra lại
 
-        if current_user.is_admin() or current_user.is_challenge_writer() or current_user.is_jury(): 
+        if (
+            current_user.is_admin()
+            or current_user.is_challenge_writer()
+            or current_user.is_jury()
+        ):
             preview = request.args.get("preview", False)
             if preview:
                 challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
@@ -625,7 +639,7 @@ class ChallengeAttempt(Resource):
                 }
 
         if ctf_paused():
-            
+
             return (
                 {
                     "success": True,
@@ -752,35 +766,40 @@ class ChallengeAttempt(Resource):
                     challenge_id=challenge_id,
                     kpm=kpm,
                 )
-                cache_key = generate_cache_key(challenge_id,team_id)
-                if challenge.require_deploy:    
+                cache_key = generate_cache_key(challenge_id, team_id)
+                if challenge.require_deploy:
 
-            
                     if not redis_client.exists(cache_key):
                         pass
 
                     try:
-                        force_stop(cache_key=cache_key, challenge_id=challenge_id, team_id=team_id)
+                        force_stop(
+                            cache_key=cache_key,
+                            challenge_id=challenge_id,
+                            team_id=team_id,
+                        )
                     except requests.exceptions.RequestException as e:
                         log(
-                        "errors",
-                        "[{date}] Error stopping challenge {challenge_id} for team {team_id}: {error}",
-                        challenge_id=challenge_id,
-                        team_id=team_id,
-                        error=str(e),
-                    )
+                            "errors",
+                            "[{date}] Error stopping challenge {challenge_id} for team {team_id}: {error}",
+                            challenge_id=challenge_id,
+                            team_id=team_id,
+                            error=str(e),
+                        )
                         return (
-                        jsonify(
-                            {
-                                "success": False,
-                                "message": f"Failed to stop challenge: {e}",
-                            }
-                        ),
-                        500,
-                    )
+                            jsonify(
+                                {
+                                    "success": False,
+                                    "message": f"Failed to stop challenge: {e}",
+                                }
+                            ),
+                            500,
+                        )
 
-                return jsonify({"success": True, "data": {"status": "correct", "message": message}})
-            
+                return jsonify(
+                    {"success": True, "data": {"status": "correct", "message": message}}
+                )
+
             else:
                 print("dddddd")  # The challenge plugin says the input is wrong
                 if (
@@ -788,7 +807,6 @@ class ChallengeAttempt(Resource):
                     or current_user.is_admin()
                     or current_user.is_challenge_writer()
                     or current_user.is_jury()
-
                 ):
 
                     chal_class.fail(
