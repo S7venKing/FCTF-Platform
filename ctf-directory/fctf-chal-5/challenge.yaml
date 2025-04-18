@@ -1,0 +1,39 @@
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "fctf-chal-5-1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-app"
+  template:
+    metadata:
+      labels:
+        app: "my-app"
+    spec:
+      containers:
+      - name: "web"
+        image: "kind/challenge/web:4066ce7ba8e2a055f81d0b255e978c3248f2e6c9f93e1834c3e5e81ba7ff9551"
+        env:
+        - name: "FLASK_ENV"
+          value: "development"
+        - name: "MYSQL_HOST"
+          value: "127.0.0.1"
+        - name: "MYSQL_DATABASE"
+          value: "mydatabase"
+        - name: "MYSQL_USER"
+          value: "myuser"
+        - name: "MYSQL_PASSWORD"
+          value: "123"
+        ports:
+        - containerPort: 5000
+      - name: "db"
+        image: "kind/challenge/db:5c0f0a53b13c6c184e3083a0857751cdf88dc05a412a80b9a085a013a0634f2f"
+        env:
+        - name: "MYSQL_ROOT_PASSWORD"
+          value: "123"
+        - name: "MYSQL_DATABASE"
+          value: "mydatabase"
+        ports:
+        - containerPort: 3306
