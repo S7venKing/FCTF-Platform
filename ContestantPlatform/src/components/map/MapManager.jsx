@@ -88,7 +88,7 @@ export class MapManager {
     onWheel(event) {
         event.preventDefault();
         requestAnimationFrame(() => {
-            const scaleFactor = event.deltaY > 0 ? 0.9 : 1.1;
+            const scaleFactor = event.deltaY > 0 ? 0.4 : 1.1;
             this.mapContainer.scale.set(
                 Math.max(0.4, Math.min(2, this.mapContainer.scale.x * scaleFactor))
             );

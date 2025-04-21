@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from "react";
-import { Application } from "pixi.js";
+import { Application, AnimatedSprite } from "pixi.js";
 import mapData from "/assets/map.png";
 import characterTexture from "/assets/Warrior_Blue.png";
 import challengesTexture from "/assets/Tower_Red.png";
 import { CharacterManager, CharacterState } from "../map/CharacterManager";
 import { ChallengeManager } from "../map/ChallengeManager";
 import { MapManager } from "../map/MapManager";
+import { ExplosionManager } from "../map/ExplosionManager";
+import { CoinManager } from "../map/CoinManager";
 import ApiHelper from "../../utils/ApiHelper";
 import { BASE_URL, API_ACTION_LOGS } from "../../constants/ApiConstant";
 import { actionType } from "../../constants/ActionLogConstant";
@@ -19,6 +21,8 @@ const ReplayActions = () => {
     const pixiAppRef = useRef(null);
     const mapManagerRef = useRef(null);
     const challengeManagerRef = useRef(null);
+    const coinManagerRef = useRef(null);
+    const explosionManagerRef = useRef(null);
     const charactersRef = useRef({});
     const containerRef = useRef(null);
     const replayStartTimeRef = useRef(0);
@@ -38,6 +42,8 @@ const ReplayActions = () => {
     const [processedLogs, setProcessedLogs] = useState([]);
     const [replayUsers, setReplayUsers] = useState([]);
     const [actionLogsDisplay, setActionLogsDisplay] = useState([]);
+    const [explosionManagerReady, setExplosionManagerReady] = useState(false);
+    const [coinManagerReady, setCoinManagerReady] = useState(false);
     const [chatVisible, setChatVisible] = useState(true);
     const [speed, setSpeed] = useState(1);
     const [isSeeking, setIsSeeking] = useState(false);
@@ -93,6 +99,30 @@ const ReplayActions = () => {
             challengeManager.initialize();
             challengeManagerRef.current = challengeManager;
 
+            try {
+                explosionManagerRef.current = new ExplosionManager(app, mapManager.mapContainer);
+                const loaded = await explosionManagerRef.current.initialize();
+                setExplosionManagerReady(loaded);
+                if (!loaded) {
+                    console.warn("Coin animations will not be available");
+                }
+            } catch (error) {
+                console.error("Failed to initialize coin manager:", error);
+                setExplosionManagerReady(false);
+            }
+
+            try {
+                coinManagerRef.current = new CoinManager(app, mapManager.mapContainer);
+                const coinLoaded = await coinManagerRef.current.initialize();
+                setCoinManagerReady(coinLoaded);
+                if (!coinLoaded) {
+                    console.warn("Coin animations will not be available");
+                }
+            } catch (error) {
+                console.error("Failed to initialize coin manager:", error);
+                setCoinManagerReady(false);
+            }
+
             const onWheel = (event) => {
                 mapManagerRef.current?.onWheel(event);
             };
@@ -136,29 +166,66 @@ const ReplayActions = () => {
         ].join(":");
     };
 
+    const formatDate = (isoString) => {
+        try {
+            // Tạo Date object và điều chỉnh theo múi giờ Việt Nam (UTC+7)
+            const date = new Date(isoString);
+            const timezoneOffset = date.getTimezoneOffset() * 60000; // offset in milliseconds
+            const vietnamOffset = 7 * 60 * 60000; // UTC+7 in milliseconds
+            const adjustedDate = new Date(date.getTime() + timezoneOffset + vietnamOffset);
+
+            return new Intl.DateTimeFormat('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                timeZone: 'Asia/Ho_Chi_Minh'
+            }).format(adjustedDate);
+        } catch (e) {
+            console.error("Error formatting date:", e);
+            return "N/A";
+        }
+    };
+
     const generateMessageFromLog = (log) => {
         const name = log.userName || `User ${log.userId}`;
         const topic = log.topicName || "một chủ đề";
-        const challenge = log.challengeName || "một thử thách";
         const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+        const actionDate = log.actionDate || new Date().toISOString();
+        const actionDetail = log.actionDetail;
+        const formattedDate = formatDate(actionDate);
 
         let message = "";
 
         switch (log.actionType) {
             case actionType.ACCESS_CHALLENGE:
-                message = `đang tiếp cận thử thách "${challenge}"`;
+                message = `<span class="font-bold italic">[${formattedDate}]</span>, <span class="font-bold text-red-600">${name}</span> ${log.actionDetail}`;
+                break;
+            case actionType.START_CHALLENGE:
+                message = `<span class="font-bold italic">[${formattedDate}]</span>, <span class="font-bold text-red-600">${name}</span> ${log.actionDetail}`;
+                break;
+            case actionType.STOP_CHALLENGE:
+                message = `<span class="font-bold italic">[${formattedDate}]</span>, <span class="font-bold text-red-600">${name}</span> ${log.actionDetail}`;
                 break;
             case actionType.CORRECT_FLAG:
-                message = `nộp cờ đúng cho thử thách "${challenge}" của Topic "${topic}"`;
+                message = `<span class="font-bold italic">[${formattedDate}]</span>, <span class="font-bold text-red-600">${name}</span> ${log.actionDetail} của Topic "${topic}"`;
                 break;
             case actionType.INCORRECT_FLAG:
-                message = `nộp cờ sai cho thử thách "${challenge}" của Topic "${topic}"`;
+                message = `<span class="font-bold italic">[${formattedDate}]</span>, <span class="font-bold text-red-600">${name}</span> ${log.actionDetail} của Topic "${topic}"`;
                 break;
             default:
-                message = `thực hiện hành động không xác định`;
+                message = `<span class="font-bold italic">[${formattedDate}]</span>, <span class="font-bold text-red-600">${name}</span> Thực hiện hành động không xác định`;
         }
 
-        return { name, initials, message };
+        return {
+            name,
+            initials,
+            message,
+            actionDate: formattedDate,
+            actionDetail
+        };
     };
 
     // ==============================================
@@ -182,6 +249,9 @@ const ReplayActions = () => {
         replayStartTimeRef.current = 0;
 
         Object.values(charactersRef.current).forEach((char) => {
+            if (char.currentBlinkInterval) {
+                clearInterval(char.currentBlinkInterval);
+            }
             char?.destroy?.();
         });
         charactersRef.current = {};
@@ -192,6 +262,14 @@ const ReplayActions = () => {
                 challenge.sprite.tint = 0xFFFFFF;
             }
         });
+
+        if (explosionManagerRef.current?.parentContainer) {
+            explosionManagerRef.current.parentContainer.children.forEach(child => {
+                if (child instanceof AnimatedSprite) {
+                    child.destroy();
+                }
+            });
+        }
 
         console.log("Replay completed, all states have been reset");
     };
@@ -266,7 +344,11 @@ const ReplayActions = () => {
         timeoutIds.forEach(id => clearTimeout(id));
         intervalIds.forEach(id => clearInterval(id));
 
-        const sortedLogs = [...filteredLogs].sort((a, b) => new Date(a.actionDate) - new Date(b.actionDate));
+        const sortedLogs = [...filteredLogs].sort((a, b) => {
+            const dateA = new Date(a.actionDate).getTime();
+            const dateB = new Date(b.actionDate).getTime();
+            return dateA - dateB;
+        });
         const newTimeoutIds = [];
         const newIntervalIds = [];
 
@@ -322,9 +404,32 @@ const ReplayActions = () => {
                                 nextLog.challengeName === log.challengeName
                             ) {
                                 if (nextLog.actionType === actionType.CORRECT_FLAG) {
-                                    character.updateAnimation(CharacterState.ATTACK_6);
+                                    if (coinManagerRef.current) {  // Check .current
+                                        const coin = coinManagerRef.current.createExplosionAnimation(  // Access .current
+                                            challengeSprite.position.x,
+                                            challengeSprite.position.y
+                                        );
+
+                                        if (!coin) {
+                                            challengeSprite.tint = 0x00FF00;
+                                        }
+                                    } else {
+                                        challengeSprite.tint = 0x00FF00;
+                                    }
                                     character.performAttack(challengeSprite, null, false);
                                 } else if (nextLog.actionType === actionType.INCORRECT_FLAG) {
+                                    if (explosionManagerRef.current) {  // Check .current
+                                        const explosion = explosionManagerRef.current.createExplosionAnimation(  // Access .current
+                                            challengeSprite.position.x,
+                                            challengeSprite.position.y
+                                        );
+
+                                        if (!explosion) {
+                                            challengeSprite.tint = 0x00FF00;
+                                        }
+                                    } else {
+                                        challengeSprite.tint = 0x00FF00;
+                                    }
                                     character.performAttack(challengeSprite, null, true);
                                 }
                             } else {
@@ -332,18 +437,66 @@ const ReplayActions = () => {
                             }
                         });
                         break;
+                    case actionType.START_CHALLENGE:
+                        character.moveToChallenge(challengeSprite, () => {
+                            challengeSprite.tint = 0xFFFF00;
+                            character.updateAnimation(CharacterState.ATTACK_1);
+
+                            // Có thể thêm hiệu ứng nhấp nháy
+                            const blinkInterval = setInterval(() => {
+                                challengeSprite.alpha = challengeSprite.alpha === 1 ? 0.5 : 1;
+                            }, 500);
+
+                            // Lưu interval để clear sau
+                            character.currentBlinkInterval = blinkInterval;
+                        });
+                        break;
+                    case actionType.STOP_CHALLENGE:
+                        character.moveToChallenge(challengeSprite, () => {
+                            // Dừng hiệu ứng nhấp nháy nếu có
+                            if (character.currentBlinkInterval) {
+                                clearInterval(character.currentBlinkInterval);
+                            }
+
+                            // Reset về trạng thái ban đầu
+                            challengeSprite.tint = 0xFFFFFF;
+                            challengeSprite.alpha = 1;
+                            character.updateAnimation(CharacterState.IDLE);
+                        });
+                        break;
                     case actionType.CORRECT_FLAG:
                         character.moveToChallenge(challengeSprite, () => {
                             character.stopAttack?.();
+
+                            if (coinManagerRef.current) {  // Check .current
+                                const coin = coinManagerRef.current.createExplosionAnimation(  // Access .current
+                                    challengeSprite.position.x,
+                                    challengeSprite.position.y
+                                );
+
+                                if (!coin) {
+                                    challengeSprite.tint = 0x00FF00;
+                                }
+                            } else {
+                                challengeSprite.tint = 0x00FF00;
+                            }
                         });
                         break;
                     case actionType.INCORRECT_FLAG:
                         character.moveToChallenge(challengeSprite, () => {
-                            character.updateAnimation(CharacterState.ATTACK_6);
-                            character.performAttack(challengeSprite, null, false);
-                            setTimeout(() => {
-                                character.performAttack(challengeSprite, null, true);
-                            }, 3000);
+                            if (explosionManagerRef.current) {  // Check .current
+                                const explosion = explosionManagerRef.current.createExplosionAnimation(  // Access .current
+                                    challengeSprite.position.x,
+                                    challengeSprite.position.y
+                                );
+
+                                if (!explosion) {
+                                    challengeSprite.tint = 0x00FF00;
+                                }
+                            } else {
+                                challengeSprite.tint = 0x00FF00;
+                            }
+                            character.performAttack(challengeSprite, null, true);
                         });
                         break;
                     default:
@@ -501,10 +654,22 @@ const ReplayActions = () => {
 
         resetAllState();
 
+        const utcStartDate = new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000);
+        const utcEndDate = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000);
+
         const filtered = logs.filter((log) => {
-            const logDate = new Date(log.actionDate);
-            if (isNaN(logDate.getTime())) return false;
-            return logDate >= startDate && logDate <= endDate;
+            try {
+                const logDate = new Date(log.actionDate);
+                if (isNaN(logDate.getTime())) return false;
+
+                // Chuyển logDate về UTC
+                const utcLogDate = new Date(logDate.getTime() - logDate.getTimezoneOffset() * 60000);
+
+                return utcLogDate >= utcStartDate && utcLogDate <= utcEndDate;
+            } catch (e) {
+                console.error("Error processing log date:", e);
+                return false;
+            }
         });
 
         const sortedFiltered = filtered.sort((a, b) => new Date(a.actionDate) - new Date(b.actionDate));
@@ -540,6 +705,9 @@ const ReplayActions = () => {
                             showTimeSelect
                             dateFormat="Pp"
                             className="border rounded-md p-2"
+                            timeIntervals={15}
+                            timeCaption="Time"
+                            timeZone="Asia/Ho_Chi_Minh"
                         />
                     </div>
                     <div>
@@ -550,6 +718,9 @@ const ReplayActions = () => {
                             showTimeSelect
                             dateFormat="Pp"
                             className="border rounded-md p-2"
+                            timeIntervals={15}
+                            timeCaption="Time"
+                            timeZone="Asia/Ho_Chi_Minh"
                         />
                     </div>
                     <button
@@ -689,10 +860,10 @@ const ReplayActions = () => {
                                 <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-400 text-white text-xs flex items-center justify-center font-bold">
                                     {msg.initials}
                                 </div>
-                                <div>
-                                    <span className="font-medium text-gray-900">{msg.name}</span>{" "}
-                                    <span className="text-gray-700">{msg.message}</span>
-                                </div>
+                                <div
+                                    className="text-gray-700"
+                                    dangerouslySetInnerHTML={{ __html: msg.message }}
+                                />
                             </div>
                         ))}
                     </div>

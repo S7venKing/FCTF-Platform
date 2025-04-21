@@ -172,7 +172,7 @@ const ChallengeDetail = () => {
       });
       if (response.success) {
         setUnlockHints((prev) => [...prev, hintId]);
-        logUserAction(actionType.UNLOCK_HINT, "Unlocked hint " + hintId);
+        logUserAction(actionType.UNLOCK_HINT, "Mở khóa trợ giúp cho thử thách " + challenge.name);
       }
       return response;
     } catch (error) {
@@ -217,9 +217,8 @@ const ChallengeDetail = () => {
         // Fetch the hint details directly from the server
         Swal.fire({
           title: "Hint Details",
-          text: `Details: ${
-            hintDetailsResponse.data.content || "No content available."
-          }`,
+          text: `Details: ${hintDetailsResponse.data.content || "No content available."
+            }`,
           icon: "info",
           confirmButtonText: "OK",
         });
@@ -248,9 +247,8 @@ const ChallengeDetail = () => {
               // Show success with hint details using SweetAlert
               Swal.fire({
                 title: "Unlock Success!",
-                text: `Hint unlocked! Details: ${
-                  hintDetailsResponse.data.content || "No content available."
-                }`,
+                text: `Hint unlocked! Details: ${hintDetailsResponse.data.content || "No content available."
+                  }`,
                 icon: "success",
                 confirmButtonText: "OK",
               });
@@ -282,10 +280,9 @@ const ChallengeDetail = () => {
                 if (hintDetailsResponse?.data) {
                   Swal.fire({
                     title: "Already Unlocked",
-                    text: `You've already unlocked this hint. Details: ${
-                      hintDetailsResponse.data.content ||
+                    text: `You've already unlocked this hint. Details: ${hintDetailsResponse.data.content ||
                       "No content available."
-                    }`,
+                      }`,
                     icon: "info",
                     confirmButtonText: "OK",
                   });
@@ -357,7 +354,7 @@ const ChallengeDetail = () => {
       const data = detailsResponse.data;
       logUserAction(
         actionType.ACCESS_CHALLENGE,
-        "Accessed challenge detail " + data.name
+        "Tiếp cận thử thách " + data.name
       );
       setChallenge(data);
       setIsSubmitted(data.solve_by_myteam);
@@ -371,7 +368,7 @@ const ChallengeDetail = () => {
             setUrl(detailsResponse.challenge_url || null);
             setMessage(
               detailsResponse.message ||
-                "Challenge started by other member in your team. "
+              "Challenge started by other member in your team. "
             );
           }
         } else {
@@ -387,7 +384,7 @@ const ChallengeDetail = () => {
             setUrl(detailsResponse.challenge_url || null);
             setMessage(
               detailsResponse.message ||
-                "Challenge started by other member in your team. "
+              "Challenge started by other member in your team. "
             );
           }
         }
@@ -485,15 +482,14 @@ const ChallengeDetail = () => {
             confirmButtonText: "OK",
           });
         }
-        logUserAction(actionType.START_CHALLENGE, "Challenge Started");
+        logUserAction(actionType.START_CHALLENGE, ` Khởi động thử thách ${challenge.name}`);
       } else {
         Swal.fire({
           title: "Error!",
-          html: `${
-            response.message ||
+          html: `${response.message ||
             response.error ||
             "An error occurs, please try again later!"
-          }`,
+            }`,
           icon: "error",
           confirmButtonText: "OK",
         });
@@ -582,7 +578,7 @@ const ChallengeDetail = () => {
         });
         console.error("Failed to stop challenge:", errorMessage);
       }
-      logUserAction(actionType.STOP_CHALLENGE, "Challenge Stopped");
+      logUserAction(actionType.STOP_CHALLENGE, `Dừng thử thách ${challenge.name}`);
     } catch (err) {
       const errorMessage =
         err.response?.data?.error ||
@@ -680,7 +676,7 @@ const ChallengeDetail = () => {
         setTimeRemaining(null);
         logUserAction(
           actionType.CORRECT_FLAG,
-          `Challenge ${challengeId} Solved`
+          `Nộp cờ đúng cho thử thách ${challenge.name}`
         );
       } else if (response?.data.status === "already_solved") {
         // Information message for already solved
@@ -718,7 +714,7 @@ const ChallengeDetail = () => {
           confirmButtonText: "OK",
         });
         setSubmissionError(response?.data.message || "Incorrect flag");
-        logUserAction(actionType.INCORRECT_FLAG, "Incorrect Flag");
+        logUserAction(actionType.INCORRECT_FLAG, `Nộp cờ sai cho thử thách ${challenge.name}`);
       }
     } catch (error) {
       Swal.fire({
@@ -912,9 +908,8 @@ const ChallengeDetail = () => {
                       id="answer"
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-theme-color-primary focus:border-transparent ${
-                        error ? "border-red-500" : "border-theme-color-neutral"
-                      }`}
+                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-theme-color-primary focus:border-transparent ${error ? "border-red-500" : "border-theme-color-neutral"
+                        }`}
                       rows="6"
                       placeholder="Enter your solution here..."
                       disabled={
@@ -930,31 +925,30 @@ const ChallengeDetail = () => {
                 )}
               {(challenge?.attemps <= challenge?.max_attempts ||
                 challenge?.max_attempts == 0) && (
-                <button
-                  onClick={handleSubmitFlag}
-                  type="submit"
-                  className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                    isSubmitted ||
-                    (challenge?.require_deploy && !isChallengeStarted)
+                  <button
+                    onClick={handleSubmitFlag}
+                    type="submit"
+                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${isSubmitted ||
+                      (challenge?.require_deploy && !isChallengeStarted)
                       ? "bg-theme-color-neutral cursor-not-allowed"
                       : "bg-theme-color-primary hover:bg-theme-color-primary-dark text-white"
-                  }`}
-                  disabled={
-                    isSubmitted ||
-                    (challenge?.require_deploy && !isChallengeStarted) ||
-                    isTimeOut
-                  }
-                >
-                  {isSubmitted ? (
-                    <>
-                      <FiCheck className="text-white" />
-                      <span>This challenge have solved</span>
-                    </>
-                  ) : (
-                    "Submit Answer"
-                  )}
-                </button>
-              )}
+                      }`}
+                    disabled={
+                      isSubmitted ||
+                      (challenge?.require_deploy && !isChallengeStarted) ||
+                      isTimeOut
+                    }
+                  >
+                    {isSubmitted ? (
+                      <>
+                        <FiCheck className="text-white" />
+                        <span>This challenge have solved</span>
+                      </>
+                    ) : (
+                      "Submit Answer"
+                    )}
+                  </button>
+                )}
               <Modal
                 isOpen={isModalOpen}
                 message={modalMessage}
@@ -968,11 +962,10 @@ const ChallengeDetail = () => {
                     type="button"
                     onClick={handleStartChallenge}
                     disabled={isStarting} // Disable button while starting
-                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                      isStarting
-                        ? "bg-gray-500 text-white cursor-not-allowed"
-                        : "bg-green-600 hover:bg-green-700 text-white"
-                    }`}
+                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${isStarting
+                      ? "bg-gray-500 text-white cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700 text-white"
+                      }`}
                   >
                     {isStarting ? "Starting..." : "Start Challenge"}
                   </button>
@@ -985,11 +978,10 @@ const ChallengeDetail = () => {
                     type="button"
                     onClick={handleStopChallenge}
                     disabled={IsStopping} // Disable the button during API call
-                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                      IsStopping
-                        ? "bg-red-400 cursor-not-allowed"
-                        : "bg-red-600 hover:bg-red-700 text-white"
-                    }`}
+                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${IsStopping
+                      ? "bg-red-400 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-700 text-white"
+                      }`}
                   >
                     {IsStopping ? (
                       <span className="flex items-center space-x-2">

@@ -3,14 +3,17 @@ import { ACCESS_TOKEN_KEY } from "../constants/LocalStorageKey";
 
 class ApiHelper {
   constructor(baseURL, needsAuth = true) {
+    this.needsAuth = needsAuth;
     this.api = axios.create({
       baseURL: baseURL,
-      headers: this._getAuthHeaders(),
+      headers: needsAuth ? this._getAuthHeaders() : {},
     });
 
     this.api.interceptors.request.use((config) => {
-      const authHeaders = this._getAuthHeaders();
-      config.headers = { ...config.headers, ...authHeaders };
+      if (this.needsAuth) {
+        const authHeaders = this._getAuthHeaders();
+        config.headers = { ...config.headers, ...authHeaders };
+      }
       return config;
     });
 

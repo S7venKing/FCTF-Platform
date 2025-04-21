@@ -78,6 +78,11 @@ export class CharacterManager {
     }
 
     createCharacter() {
+        if (!this.user || !this.user.id || !this.user.name) {
+            console.error("Dữ liệu user không hợp lệ:", this.user);
+            return;
+        }
+
         this.character = new AnimatedSprite(this.animations[CharacterState.IDLE]);
         const userHash = this.user.id
             .toString()
@@ -102,7 +107,6 @@ export class CharacterManager {
         this.character.interactive = true;
         this.character.interactiveChildren = true;
         this.createNameTag();
-        this.setupCharacterInteractions();
         this.characterContainer.addChild(this.character);
     }
 
@@ -120,7 +124,7 @@ export class CharacterManager {
         });
         this.nameTag.anchor.set(0.5);
         this.nameTag.position.set(this.characterPosition.x, this.characterPosition.y - 50);
-        this.nameTag.visible = false;
+        this.nameTag.visible = true;
         this.nameTag.zIndex = 3;
         this.characterContainer.addChild(this.nameTag);
 
@@ -132,11 +136,6 @@ export class CharacterManager {
                 );
             }
         });
-    }
-
-    setupCharacterInteractions() {
-        this.character.on("pointerover", () => { this.nameTag.visible = true; });
-        this.character.on("pointerout", () => { this.nameTag.visible = false; });
     }
 
     setupPositionSaving() {
@@ -152,7 +151,8 @@ export class CharacterManager {
     }
 
     moveToChallenge(challengeSprite, onComplete) {
-        if (!this.character || this.isMoving || !this.characterContainer) return;
+        const characterRef = this.character;
+        if (!characterRef || this.isMoving || !this.characterContainer) return;
 
         if (this.activeChallenge && this.activeChallenge !== challengeSprite) {
             this.challengeManager.stopShakeEffect(this.activeChallenge);
@@ -174,6 +174,11 @@ export class CharacterManager {
         };
 
         const moveCharacterToTarget = () => {
+            if (!characterRef || !characterRef.position) {
+                this.app.ticker.remove(moveCharacterToTarget);
+                return;
+            }
+
             const dx = target.x - this.character.x;
             const dy = target.y - this.character.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -295,7 +300,7 @@ export class CharacterManager {
         return this._globalSpeed;
     }
 
-    performAttack(challengeSprite, onComplete, options = { shake: false }) {
+    performAttack(challengeSprite, onComplete, options = { shake: true }) {
         if (!challengeSprite || !challengeSprite.position || typeof challengeSprite.position.set !== "function") {
             console.error("Invalid challengeSprite passed to performAttack:", challengeSprite);
             return;
@@ -307,7 +312,16 @@ export class CharacterManager {
         this.attackOptions = options;
         this.attackOnComplete = onComplete;
 
-        this.updateAnimation(CharacterState.ATTACK_2);
+        const attackStates = [
+            CharacterState.ATTACK_1,
+            CharacterState.ATTACK_2,
+            CharacterState.ATTACK_3,
+            CharacterState.ATTACK_4,
+            CharacterState.ATTACK_5,
+            CharacterState.ATTACK_6
+        ];
+        const randomAttackState = attackStates[Math.floor(Math.random() * attackStates.length)];
+        this.updateAnimation(randomAttackState);
 
         if (options.shake && this.challengeManager?.createShakeEffect) {
             const intervalTime = 300 / this.globalSpeed;
@@ -335,6 +349,11 @@ export class CharacterManager {
     }
 
     destroy() {
+        if (this.moveTicker) {
+            this.app.ticker.remove(this.moveTicker);
+            this.moveTicker = null;
+        }
+
         if (this.positionSaveInterval) {
             clearInterval(this.positionSaveInterval);
             this.positionSaveInterval = null;

@@ -1,5 +1,5 @@
 import { Container, Assets, Sprite, Text, TextStyle } from "pixi.js";
-import { BASE_URL, API_CHALLENGE_GET_TOPICS } from "../../constants/ApiConstant";
+import { BASE_URL, API_PUBLIC_CHALLENGE_GET_TOPICS } from "../../constants/ApiConstant";
 import ApiHelper from "../../utils/ApiHelper";
 
 export class ChallengeManager {
@@ -18,9 +18,9 @@ export class ChallengeManager {
     }
 
     async fetchChallenges() {
-        const api = new ApiHelper(BASE_URL);
+        const api = new ApiHelper(BASE_URL, false);
         try {
-            const response = await api.get(API_CHALLENGE_GET_TOPICS);
+            const response = await api.get(API_PUBLIC_CHALLENGE_GET_TOPICS);
             console.log("API Response:", response);
             return response.data;
         } catch (err) {
@@ -30,38 +30,61 @@ export class ChallengeManager {
     }
 
     async initialize() {
-        this.challenges = await this.fetchChallenges();
         const texture = await Assets.load(this.challengesTexture);
-        this.mapContainer.addChild(this.challengesContainer);
+        this.challenges = await this.fetchChallenges();
 
         const savedPositions = this.getSavedChallengePositions();
+        const positions = (savedPositions && savedPositions.positions &&
+            savedPositions.positions.length === this.challenges.length)
+            ? savedPositions.positions
+            : this.generateNewPositions();
 
-        if (savedPositions && savedPositions.timestamp && this.isWithin24Hours(savedPositions.timestamp)) {
-            this.challenges.forEach((challenge, index) => {
-                this.createChallenge(challenge, texture, savedPositions.positions[index]);
-            });
-        } else {
-            const newPositions = this.getChallengePositions(this.challenges);
-            this.challenges.forEach((challenge, index) => {
-                this.createChallenge(challenge, texture, newPositions[index]);
-            });
-            this.saveChallengePositions(newPositions);
+        this.mapContainer.addChild(this.challengesContainer);
+        // Tạo challenges với vị trí đã xác định
+        this.challenges.forEach((challenge, index) => {
+            this.createChallenge(challenge, texture, positions[index]);
+        });
+
+        // Nếu là vị trí mới, lưu vào localStorage
+        if (!savedPositions || savedPositions.positions.length !== this.challenges.length) {
+            this.saveChallengePositions(positions);
         }
 
         return this.challengesContainer;
     }
 
+    generateNewPositions() {
+        const positions = this.getChallengePositions(this.challenges);
+        this.saveChallengePositions(positions);
+        return positions;
+    }
+
     getSavedChallengePositions() {
-        const savedData = localStorage.getItem("challengePositions");
-        return savedData ? JSON.parse(savedData) : null;
+        try {
+            const savedData = localStorage.getItem("challengePositions");
+            if (!savedData) return null;
+
+            const parsed = JSON.parse(savedData);
+            // Kiểm tra cấu trúc dữ liệu
+            if (parsed && Array.isArray(parsed.positions)) {
+                return parsed;
+            }
+            return null;
+        } catch (e) {
+            console.error("Error parsing saved positions:", e);
+            return null;
+        }
     }
 
     saveChallengePositions(positions) {
-        const data = positions.map((pos, index) => ({
-            id: this.challenges[index].challengeId,
-            x: pos.x,
-            y: pos.y,
-        }));
+        const data = {
+            timestamp: Date.now(),
+            positions: positions.map((pos, index) => ({
+                id: this.challenges[index].id,
+                x: pos.x,
+                y: pos.y
+            }))
+        };
         localStorage.setItem("challengePositions", JSON.stringify(data));
     }
 
@@ -118,26 +141,30 @@ export class ChallengeManager {
     }
 
     createChallenge(challenge, texture, position) {
+        if (!texture || !position) {
+            console.error("Missing texture or position for challenge", challenge);
+            return null;
+        }
         const challengeSprite = new Sprite(texture);
         challengeSprite.anchor.set(0.5);
         challengeSprite.scale.set(1);
         challengeSprite.position.set(position.x, position.y);
         challengeSprite.zIndex = 1;
+        challengeSprite.metadata = {
+            challengeId: challenge.id,
+            topicName: challenge.topic_name
+        };
         this.challengesContainer.addChild(challengeSprite);
 
         const challengeText = new Text({
             text: challenge.topic_name,
             style: this.textStyle
         });
-        challengeText.visible = false;
+        challengeText.visible = true;
         challengeText.anchor.set(0.5);
         challengeText.position.set(position.x, position.y - 100);
         challengeText.zIndex = 1;
         this.challengesContainer.addChild(challengeText);
-
-        challengeSprite.eventMode = "static";
-        challengeSprite.on("pointerover", () => { challengeText.visible = true; });
-        challengeSprite.on("pointerout", () => { challengeText.visible = false; });
 
         this.challenges.push({
             challengeId: challenge.id,
@@ -160,8 +187,7 @@ export class ChallengeManager {
             const progress = elapsed / duration;
 
             if (progress >= 1) {
-                sprite.x = originalX;
-                sprite.y = originalY;
+                sprite.position.set(originalX, originalY);
                 this.app.ticker.remove(shake);
                 return;
             }
@@ -170,8 +196,10 @@ export class ChallengeManager {
             const offsetX = (Math.random() - 0.5) * intensity * decay * 2;
             const offsetY = (Math.random() - 0.5) * intensity * decay * 2;
 
-            sprite.x = originalX + offsetX;
-            sprite.y = originalY + offsetY;
+            sprite.position.set(
+                originalX + offsetX,
+                originalY + offsetY
+            );
         };
 
         this.app.ticker.add(shake);
@@ -179,8 +207,7 @@ export class ChallengeManager {
 
     stopShakeEffect(sprite) {
         if (!sprite || !sprite.position) return;
-        sprite.x = Math.round(sprite.x);
-        sprite.y = Math.round(sprite.y);
+        sprite.position.set(Math.round(sprite.x), Math.round(sprite.y));
     }
 
     findChallengeByTopicName(topicName) {

@@ -154,43 +154,49 @@ function App() {
   return (
     <ActionLogsContext.Provider value={actionLogs}>
       <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-        {/* Protected routes inside UserProvider */}
-        <UserProvider>
-          <Routes>
-            <Route path="/replay" element={<ReplayPage />} />
+        <Routes>
+          <Route path="/replay" element={<ReplayPage />} />
 
-            {/* Home */}
-            <Route path="/" element={<Template><HomePage /></Template>} />
+          <Route
+            path="/*"
+            element={
+              <UserProvider>
+                <Routes>
+                  {/* Home */}
+                  <Route path="/" element={<Template><HomePage /></Template>} />
 
-            {/* Authentication */}
-            <Route path="/login" element={<LoginComponent />} />
-            <Route path="/register" element={<RegistrationForm />} />
+                  {/* Authentication */}
+                  <Route path="/login" element={<LoginComponent />} />
+                  <Route path="/register" element={<RegistrationForm />} />
 
-            {/* Team */}
-            <Route path="/team-confirm" element={<TeamComponent />} />
-            <Route path="/team-create" element={<CreateTeamComponent />} />
-            <Route path="/team-join" element={<JoinTeamComponent />} />
+                  {/* Team */}
+                  <Route path="/team-confirm" element={<TeamComponent />} />
+                  <Route path="/team-create" element={<CreateTeamComponent />} />
+                  <Route path="/team-join" element={<JoinTeamComponent />} />
 
-            {/* Ranking and Topic */}
-            <Route path="/rankings" element={<Template title="Rankings"><Scoreboard /></Template>} />
-            <Route path="/topics" element={<Template title="Topics"><ChallengeTopics /></Template>} />
-            <Route path="/topic/:categoryName" element={<Template><ChallengeList /></Template>} />
+                  {/* Ranking and Topic */}
+                  <Route path="/rankings" element={<Template title="Rankings"><Scoreboard /></Template>} />
+                  <Route path="/topics" element={<Template title="Topics"><ChallengeTopics /></Template>} />
+                  <Route path="/topic/:categoryName" element={<Template><ChallengeList /></Template>} />
 
-            {/* Challenges and Ticket */}
-            <Route path="/challenge/:id" element={<Template><ChallengeDetail /></Template>} />
-            <Route path="/tickets" element={<Template title="Tickets"><TicketList /></Template>} />
-            <Route path="/ticket/:id" element={<Template><TicketDetailPage /></Template>} />
+                  {/* Challenges and Ticket */}
+                  <Route path="/challenge/:id" element={<Template><ChallengeDetail /></Template>} />
+                  <Route path="/tickets" element={<Template title="Tickets"><TicketList /></Template>} />
+                  <Route path="/ticket/:id" element={<Template><TicketDetailPage /></Template>} />
 
-            {/* Profile */}
-            <Route path="/profile" element={<Template title="Profile"><UserProfile /></Template>} />
+                  {/* Profile */}
+                  <Route path="/profile" element={<Template title="Profile"><UserProfile /></Template>} />
 
-            {/* Logs */}
-            <Route path="/actions_logs" element={<Template title="Preview"><ActionLogs /></Template>} />
+                  {/* Logs */}
+                  <Route path="/actions_logs" element={<Template title="Preview"><ActionLogs /></Template>} />
 
-            {/* Prohibited */}
-            <Route path="/forbidden" element={<Template><LockScreen /></Template>} />
-          </Routes>
-        </UserProvider>
+                  {/* Prohibited */}
+                  <Route path="/forbidden" element={<Template><LockScreen /></Template>} />
+                </Routes>
+              </UserProvider>
+            }
+          />
+        </Routes>
       </Router>
     </ActionLogsContext.Provider>
   );
