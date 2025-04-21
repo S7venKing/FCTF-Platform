@@ -1,7 +1,7 @@
 from typing import List
 from flask import request
 from flask_restx import Namespace, Resource
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, ValidationError
 from flask import jsonify
 from CTFd.models import Tokens, Users, Challenges
@@ -62,11 +62,8 @@ class ActionLogList(Resource):
                 db.session.query(
                     ActionLogs,
                     Users.name.label("userName"),
-                    Challenges.id.label("challengeId"),
-                    Challenges.name.label("challengeName"),
                 )
                 .join(Users, ActionLogs.userId == Users.id)
-                .outerjoin(Challenges, ActionLogs.topicName == Challenges.category)
                 .order_by(ActionLogs.actionDate.desc())
                 .all()
             )
@@ -79,8 +76,6 @@ class ActionLogList(Resource):
                 {
                     **log.ActionLogs.to_dict(),
                     "userName": log.userName,
-                    "challengeId": log.challengeId,
-                    "challengeName": log.challengeName,
                 }
                 for log in logs_with_details
             ]
@@ -122,7 +117,7 @@ class ActionLogList(Resource):
 
             log = ActionLogs(
                 userId=user.id,
-                actionDate=datetime.now().isoformat(),
+                actionDate=datetime.now(timezone.uct).isoformat(),
                 actionType=validated_data.actionType,
                 actionDetail=validated_data.actionDetail,
                 topicName=topic_name,

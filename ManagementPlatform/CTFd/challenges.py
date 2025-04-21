@@ -22,7 +22,16 @@ from CTFd.constants.envvars import (
     HOST_CACHE,
 )
 from sqlalchemy import func
-from CTFd.utils.connector.multiservice_connector import challenge_start, create_secret_key, force_stop, generate_cache_attempt_key, generate_cache_key, get_team_id_and_cache_key, get_token_from_header, prepare_challenge_payload
+from CTFd.utils.connector.multiservice_connector import (
+    challenge_start,
+    create_secret_key,
+    force_stop,
+    generate_cache_attempt_key,
+    generate_cache_key,
+    get_team_id_and_cache_key,
+    get_token_from_header,
+    prepare_challenge_payload,
+)
 
 from CTFd.constants.config import ChallengeVisibilityTypes, Configs
 from CTFd.utils.config import is_teams_mode
@@ -100,7 +109,12 @@ def get_challenge_detail(challenge_id):
         if not challenge:
             return jsonify({"success": False, "message": "Challenge not found"}), 404
         if challenge.state == "hidden":
-            return jsonify({"success": False, "message": "Challenge now is not available"}), 404
+            return (
+                jsonify(
+                    {"success": False, "message": "Challenge now is not available"}
+                ),
+                404,
+            )
 
         generatedToken = get_token_from_header()
         if not generatedToken:
@@ -109,67 +123,66 @@ def get_challenge_detail(challenge_id):
         if token is None:
             return jsonify({"error": "Token not found"}), 404
         user = Users.query.filter_by(id=token.user_id).first()
-        
+
         if user is None:
             return jsonify({"error": "User not found"}), 404
         team_id = user.team_id
-        team = Teams.query.filter_by(id = team_id).first()
+        team = Teams.query.filter_by(id=team_id).first()
         if team.banned or user.banned:
             return jsonify({"error": "Your team has been banned"}), 404
 
-
         solve_id = (
-        Solves.query.with_entities(Solves.challenge_id)
-        .filter(Solves.team_id == team_id) 
-        .filter(Solves.challenge_id == challenge.id)  
-        .first() 
+            Solves.query.with_entities(Solves.challenge_id)
+            .filter(Solves.team_id == team_id)
+            .filter(Solves.challenge_id == challenge.id)
+            .first()
         )
 
         solve_by_myteam = False
-        if(solve_id):
+        if solve_id:
             solve_by_myteam = True
 
         attempts = Submissions.query.filter_by(
-                team_id=team_id, challenge_id=challenge.id
+            team_id=team_id, challenge_id=challenge.id
         ).count()
 
         files = []
         for f in challenge.files:
-                token = {
-                    "user_id": user.id,
-                    "team_id": team_id if team_id else None,
-                    "file_id": f.id,
-                }
-                files.append(
-                    url_for("views.files", path=f.location, token=serialize(token))
-                )
-            
-        challenge_data = {
-                "id": challenge.id,
-                "name": challenge.name,
-                "description": modify_description(challenge),
-                "max_attempts": challenge.max_attempts,
-                "attemps": attempts,
-                "category": challenge.category,
-                "time_limit": challenge.time_limit,
-                "require_deploy": challenge.require_deploy,
-                "type": challenge.type,
-                "next_id": challenge.next_id,
-                "solve_by_myteam": solve_by_myteam,
-                "files":files
+            token = {
+                "user_id": user.id,
+                "team_id": team_id if team_id else None,
+                "file_id": f.id,
             }
-        
-        cache_key = generate_cache_key( challenge_id,team_id)
+            files.append(
+                url_for("views.files", path=f.location, token=serialize(token))
+            )
+
+        challenge_data = {
+            "id": challenge.id,
+            "name": challenge.name,
+            "description": modify_description(challenge),
+            "max_attempts": challenge.max_attempts,
+            "attemps": attempts,
+            "category": challenge.category,
+            "time_limit": challenge.time_limit,
+            "require_deploy": challenge.require_deploy,
+            "type": challenge.type,
+            "next_id": challenge.next_id,
+            "solve_by_myteam": solve_by_myteam,
+            "files": files,
+        }
+
+        cache_key = generate_cache_key(challenge_id, team_id)
         print("cache_key:", cache_key)
         if redis_client.exists(cache_key):
             cached_value = redis_client.get(cache_key)
             challenge_data_cached = json.loads(cached_value)
             challenge_id_cache = challenge_data_cached.get("challenge_id")
             challenge_user_id = challenge_data_cached.get("user_id")
-            user = Users.query.filter_by(id =challenge_user_id).first()
+            user = Users.query.filter_by(id=challenge_user_id).first()
             user_name = user.name
             if challenge_id_cache == challenge_id:
-                
+
                 time_finished = challenge_data_cached.get("time_finished")
                 time_remaining = 0
                 if time_finished:
@@ -181,20 +194,22 @@ def get_challenge_detail(challenge_id):
                 return (
                     jsonify(
                         {
-                            "message":f"Challenge was started by: {user_name}",
+                            "message": f"Challenge was started by: {user_name}",
                             "data": challenge_data,
                             "is_started": True,
                             "challenge_url": challenge_data_cached["challenge_url"],
-                            "time_remaining": time_remaining
+                            "time_remaining": time_remaining,
                         }
                     ),
                     200,
                 )
             else:
-                return jsonify({
-                    "data": challenge_data,
-                    "is_started": False,
-                })
+                return jsonify(
+                    {
+                        "data": challenge_data,
+                        "is_started": False,
+                    }
+                )
         else:
             return (
                 jsonify({"success": True, "data": challenge_data, "is_started": False}),
@@ -220,7 +235,6 @@ def get_challenges_by_topic(category):
         if not token:
             return jsonify({"error": "Token not found"}), 404
 
-        
         topics_data = []
 
         for challenge in challenges:
@@ -228,30 +242,29 @@ def get_challenges_by_topic(category):
                 continue
             else:
                 solve_id = (
-                Solves.query.with_entities(Solves.challenge_id)
-                .filter(Solves.team_id == team_id) 
-                .filter(Solves.challenge_id == challenge.id)  
-                .first() 
+                    Solves.query.with_entities(Solves.challenge_id)
+                    .filter(Solves.team_id == team_id)
+                    .filter(Solves.challenge_id == challenge.id)
+                    .first()
                 )
-                
+
                 solve_by_myteam = False
-                if(solve_id):
+                if solve_id:
                     solve_by_myteam = True
                 challenge_data = {
-                        "id": challenge.id,
-                        "name": challenge.name,
-                        "next_id": challenge.next_id,
-                        "max_attempts": challenge.max_attempts,
-                        "value": challenge.value,
-                        "category": challenge.category,
-                        "time_limit": challenge.time_limit,
-                        "type": challenge.type,
-                        "requirements": challenge.requirements,
-                        "time_limit": challenge.time_limit,
-                        "solve_by_myteam":solve_by_myteam,
-                    }
-                topics_data.append(challenge_data)  
-                
+                    "id": challenge.id,
+                    "name": challenge.name,
+                    "next_id": challenge.next_id,
+                    "max_attempts": challenge.max_attempts,
+                    "value": challenge.value,
+                    "category": challenge.category,
+                    "time_limit": challenge.time_limit,
+                    "type": challenge.type,
+                    "requirements": challenge.requirements,
+                    "time_limit": challenge.time_limit,
+                    "solve_by_myteam": solve_by_myteam,
+                }
+                topics_data.append(challenge_data)
 
         return jsonify({"success": True, "data": topics_data}), 200
 
@@ -266,7 +279,10 @@ def get_challenges_by_topic(category):
 @bypass_csrf_protection
 def challenge_by_topic():
     if is_banned():
-        return jsonify({'message': 'You have been banned from CTFd', 'success':False}), 403
+        return (
+            jsonify({"message": "You have been banned from CTFd", "success": False}),
+            403,
+        )
     generatedToken = get_token_from_header()
     token = Tokens.query.filter_by(value=generatedToken).first()
     user_id = token.user_id
@@ -274,52 +290,108 @@ def challenge_by_topic():
     team_id = user.team_id
     if not token:
         return jsonify({"error": "Token not found"}), 404
-    
+
     try:
         distinct_categories = (
-            Challenges.query
-            .with_entities(Challenges.category)
+            Challenges.query.with_entities(Challenges.category)
             .filter(Challenges.state != "hidden")
             .distinct()
             .all()
         )
-        
+
         challenge_counts_by_topic = (
-            Challenges.query
-            .with_entities(Challenges.category, func.count(Challenges.id).label("challenge_count"))
+            Challenges.query.with_entities(
+                Challenges.category, func.count(Challenges.id).label("challenge_count")
+            )
             .filter(Challenges.state != "hidden")
             .group_by(Challenges.category)
             .all()
-        )  
-        
+        )
+
         # Tạo từ điển để dễ tra cứu số lượng challenges
-        challenge_count_dict = {category: count for category, count in challenge_counts_by_topic}
+        challenge_count_dict = {
+            category: count for category, count in challenge_counts_by_topic
+        }
 
         # Thêm số lượng challenges vào topics_data
-        topics_data = []  
-        
+        topics_data = []
+
         for category in distinct_categories:
             topic_name = category[0]
             solved_challenges = (
-            Solves.query
-            .join(Challenges, Solves.challenge_id == Challenges.id)
-            .filter(
-                Solves.team_id == team_id,
-                Challenges.category == topic_name,
-                Challenges.state != "hidden"
+                Solves.query.join(Challenges, Solves.challenge_id == Challenges.id)
+                .filter(
+                    Solves.team_id == team_id,
+                    Challenges.category == topic_name,
+                    Challenges.state != "hidden",
+                )
+                .distinct(Challenges.id)
+                .count()
             )
-            .distinct(Challenges.id)
-            .count()
-            )
-            
-            challenge_count_by_topic= challenge_count_dict.get(category[0], 0)
+
+            challenge_count_by_topic = challenge_count_dict.get(category[0], 0)
             cleared = False
             if solved_challenges >= challenge_count_by_topic:
                 cleared = True
             data = {
                 "topic_name": topic_name,
                 "challenge_count": challenge_count_by_topic,
-                "cleared": cleared
+                "cleared": cleared,
+            }
+            topics_data.append(data)
+
+        return jsonify({"success": True, "data": topics_data}), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@challenges.route("/api/public/challenge/by-topic", methods=["GET"])
+@bypass_csrf_protection
+def public_challenge_by_topic():
+    try:
+        # Lấy các danh mục challenge mà không yêu cầu người dùng đăng nhập
+        distinct_categories = (
+            Challenges.query.with_entities(Challenges.category)
+            .filter(Challenges.state != "hidden")
+            .distinct()
+            .all()
+        )
+
+        challenge_counts_by_topic = (
+            Challenges.query.with_entities(
+                Challenges.category, func.count(Challenges.id).label("challenge_count")
+            )
+            .filter(Challenges.state != "hidden")
+            .group_by(Challenges.category)
+            .all()
+        )
+
+        # Tạo từ điển để dễ tra cứu số lượng challenges
+        challenge_count_dict = {
+            category: count for category, count in challenge_counts_by_topic
+        }
+
+        # Thêm số lượng challenges vào topics_data
+        topics_data = []
+
+        for category in distinct_categories:
+            topic_name = category[0]
+            solved_challenges = (
+                Solves.query.join(Challenges, Solves.challenge_id == Challenges.id)
+                .filter(Challenges.category == topic_name, Challenges.state != "hidden")
+                .distinct(Challenges.id)
+                .count()
+            )
+
+            challenge_count_by_topic = challenge_count_dict.get(category[0], 0)
+            cleared = False
+            if solved_challenges >= challenge_count_by_topic:
+                cleared = True
+            data = {
+                "topic_name": topic_name,
+                "challenge_count": challenge_count_by_topic,
+                "cleared": cleared,
             }
             topics_data.append(data)
 
