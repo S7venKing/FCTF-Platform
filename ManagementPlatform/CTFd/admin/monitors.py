@@ -24,5 +24,12 @@ def monitoring():
 # def monitoring_modify():
 #     return render_template("admin/monitoring_modify.html")
 
+# Modified API to include more metrics
+@admin.route("/api/performance", methods=["POST"])
+@admin_or_challenge_writer_only_or_jury
+@bypass_csrf_protection
+def machine_performance():
+    return monitoring_control()
+
 
 
