@@ -10,7 +10,7 @@ import {
 } from "../../constants/ApiConstant";
 import { ACCESS_TOKEN_KEY } from "../../constants/LocalStorageKey";
 import ApiHelper from "../../utils/ApiHelper";
-import { useUser } from '../contexts/UserContext';
+import { useUser } from "../contexts/UserContext";
 
 const LoginComponent = () => {
   const { login } = useUser();
@@ -66,11 +66,11 @@ const LoginComponent = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value, }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (name === "username") {
-      setErrors((prev) => ({ ...prev, username: validateUsername(value), }));
+      setErrors((prev) => ({ ...prev, username: validateUsername(value) }));
     } else if (name === "password") {
-      setErrors((prev) => ({ ...prev, }));
+      setErrors((prev) => ({ ...prev }));
     }
   };
 
@@ -95,20 +95,34 @@ const LoginComponent = () => {
           id: response.data.user.id,
           name: formData.username,
           token: response.data.generatedToken,
-          team: response.data.user.team || "No team"
+          team: response.data.user.team || "No team",
         });
 
         console.log("Login successful!!!");
-        navigate("/");
+        if (response.data.user.team == null) {
+          Swal.fire({
+            title: "Team Confirmation Required",
+            text: "You need to join a team",
+            icon: "info",
+            confirmButtonText: "To the Team Confirm Page",
+          }).then(() => {
+            navigate("/team-confirm");
+          });
+        } else {
+          navigate("/");
+        }
       } else if (response.status === 400) {
-        const errorMessage = response.data.msg || response.data.message || "Invalid input. Please check and try again!";
+        const errorMessage =
+          response.data.msg ||
+          response.data.message ||
+          "Invalid input. Please check and try again!";
         if (errorMessage.toLowerCase().includes("team")) {
           localStorage.setItem(ACCESS_TOKEN_KEY, response.data.generatedToken);
           login({
             id: response.data.user?.id,
             name: formData.username,
             token: response.data.generatedToken,
-            team: response.data.user.team || { teamName: "No team" }
+            team: response.data.user.team || { teamName: "No team" },
           });
           Swal.fire({
             title: "Team Confirmation Required",
@@ -129,7 +143,10 @@ const LoginComponent = () => {
       } else {
         Swal.fire({
           title: "Login Failed!",
-          text: response.data.msg || response.data.message || "Unexpected error occurred. Please try again!",
+          text:
+            response.data.msg ||
+            response.data.message ||
+            "Unexpected error occurred. Please try again!",
           icon: "error",
           confirmButtonText: "GOT IT!",
         });
@@ -137,7 +154,10 @@ const LoginComponent = () => {
     } catch (error) {
       Swal.fire({
         title: "Login Fail!",
-        text: error.response?.data?.msg || error.response?.data?.message || "Invalid username or password. Please try again!",
+        text:
+          error.response?.data?.msg ||
+          error.response?.data?.message ||
+          "Invalid username or password. Please try again!",
         icon: "error",
         confirmButtonText: "GOT IT!",
       });
@@ -167,8 +187,9 @@ const LoginComponent = () => {
               name="username"
               value={formData.username}
               onChange={handleInputChange}
-              className={`mt-1 block w-full px-3 py-2 border ${errors.username ? "border-red-500" : "border-gray-300"
-                } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+              className={`mt-1 block w-full px-3 py-2 border ${
+                errors.username ? "border-red-500" : "border-gray-300"
+              } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
               aria-invalid={errors.username ? "true" : "false"}
               aria-describedby="username-error"
               autoComplete="username"
@@ -198,8 +219,9 @@ const LoginComponent = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border ${errors.password ? "border-red-500" : "border-gray-300"
-                  } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`mt-1 block w-full px-3 py-2 border ${
+                  errors.password ? "border-red-500" : "border-gray-300"
+                } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 aria-invalid={errors.password ? "true" : "false"}
                 aria-describedby="password-error"
                 autoComplete="current-password"
@@ -254,3 +276,4 @@ const LoginComponent = () => {
 };
 
 export default LoginComponent;
+

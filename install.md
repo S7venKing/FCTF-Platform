@@ -104,7 +104,7 @@ Hệ thống quản lý thách thức và nền tảng kCTF.
 2.  **Khởi chạy hệ thống bằng Docker Compose:**
     
     ```bash
-    docker compose --env-file ./ManagementPlatform/.env up --force-recreate -d
+    docker compose --env-file .env up --force-recreate -d
     ```
     
 

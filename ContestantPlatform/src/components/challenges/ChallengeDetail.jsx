@@ -437,7 +437,7 @@ const ChallengeDetail = () => {
       if (response.success) {
         try {
           const timeRemaining = await fetchChallengeDetails();
-
+                      logUserAction(actionType.START_CHALLENGE, ` Khởi động thử thách ${challenge.name}`);
           setUrl(response.challenge_url || null);
           setIsChallengeStarted(true);
           setIsSubmitted(false);
@@ -463,6 +463,7 @@ const ChallengeDetail = () => {
                 icon: "success",
                 confirmButtonText: "OK",
               });
+
             } else {
               // Success message with plain text
               Swal.fire({
@@ -482,7 +483,7 @@ const ChallengeDetail = () => {
             confirmButtonText: "OK",
           });
         }
-        logUserAction(actionType.START_CHALLENGE, ` Khởi động thử thách ${challenge.name}`);
+
       } else {
         Swal.fire({
           title: "Error!",
@@ -561,6 +562,8 @@ const ChallengeDetail = () => {
           icon: "success",
           confirmButtonText: "OK",
         });
+        
+              logUserAction(actionType.STOP_CHALLENGE, `Dừng thử thách ${challenge.name}`);
       } else {
         const errorMessage =
           response.message ||
@@ -578,7 +581,7 @@ const ChallengeDetail = () => {
         });
         console.error("Failed to stop challenge:", errorMessage);
       }
-      logUserAction(actionType.STOP_CHALLENGE, `Dừng thử thách ${challenge.name}`);
+
     } catch (err) {
       const errorMessage =
         err.response?.data?.error ||
@@ -665,6 +668,10 @@ const ChallengeDetail = () => {
       };
       const response = await api.postForm(SUBMIT_FLAG, data);
       if (response?.data.status === "correct") {
+                    logUserAction(
+          actionType.CORRECT_FLAG,
+          `Nộp cờ đúng cho thử thách ${challenge.name}`
+        );
         // Success message for correct flag
         Swal.fire({
           title: "Correct Flag!",
@@ -674,10 +681,7 @@ const ChallengeDetail = () => {
         });
         setIsSubmitted(true);
         setTimeRemaining(null);
-        logUserAction(
-          actionType.CORRECT_FLAG,
-          `Nộp cờ đúng cho thử thách ${challenge.name}`
-        );
+
       } else if (response?.data.status === "already_solved") {
         // Information message for already solved
         Swal.fire({
@@ -716,6 +720,8 @@ const ChallengeDetail = () => {
         setSubmissionError(response?.data.message || "Incorrect flag");
         logUserAction(actionType.INCORRECT_FLAG, `Nộp cờ sai cho thử thách ${challenge.name}`);
       }
+      
+
     } catch (error) {
       Swal.fire({
         title: "No Submission Left!",

@@ -7,6 +7,7 @@ import requests  # noqa: I001
 
 from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
+from CTFd.utils.notifications import notify_to_contestant
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY
@@ -518,6 +519,10 @@ class Challenge(Resource):
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
         response = challenge_class.read(challenge)
+        notify_to_contestant(notif_type = "toast", 
+                             notif_sound = True,
+                             notif_title= "Thông báo từ ban quản trị",
+                             notif_message= f"Thử thách '{challenge.name}' vừa được cập nhật.")
 
         clear_standings()
         clear_challenges()
@@ -548,6 +553,11 @@ class Challenge(Resource):
         chal_class.delete(challenge)
         clear_standings()
         clear_challenges()
+        
+        notify_to_contestant(notif_type = "toast", 
+                             notif_sound = True,
+                             notif_title= "Thông báo từ ban quản trị",
+                             notif_message= f"Thử thách '{challenge.name}' vừa bị xóa bỏ.")
 
         return {"success": True}
 
@@ -981,3 +991,4 @@ class ChallengeRequirements(Resource):
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         return {"success": True, "data": challenge.requirements}
+
