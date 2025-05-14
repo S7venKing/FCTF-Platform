@@ -1,147 +1,17 @@
-
 {% extends "admin/base.html" %}
 
 {% block content %}
 <style>
-    .table-responsive {
-        max-height: 30vh;
-        overflow-y: auto;
-    }
 
-    .table thead th {
-        position: sticky;
-        top: 0;
-        background-color: #fff;
-        z-index: 1;
-    }
 </style>
 <div class="jumbotron">
     <div class="container">
         <h1>System Monitoring</h1>
     </div>
 </div>
-<div class="wrapper d-flex">
-    <div class="container-fluid p-4">
-        <div class="row g-4">
-            <!-- Move Table to the Top -->
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">System Metrics Summary</h5>
-                        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Challenge Name</th>
-                                        <th>Team Name</th>
-                                        <th>CPU Usage</th>
-                                        <th>RAM Usage</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="metrics-table-body">
-                                    <!-- Table rows will be dynamically added here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
+<div class="container">
+   Maintenance
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
-<script>
-    let sttCounter = 1;  // Initialize a counter for STT (Serial Number)
-    const maxDataPoints = 10; // Limit the number of data points on the charts
-    let teamNames = [];  // To store team names for use in tooltip
-
-    // Hàm cập nhật bảng và biểu đồ
-    function updateChartsAndTable() {
-        fetch('/api/performance', {
-            method: 'POST',
-        })
-            .then(response => response.json())
-            .then(data => {
-                const currentTime = new Date().toLocaleTimeString();
-
-                // Kiểm tra dữ liệu hợp lệ
-                if (!Array.isArray(data) || data.length === 0) {
-                    console.error('Invalid data format or empty data received');
-                    return;
-                }
-
-                // Cập nhật bảng
-                const tableBody = document.getElementById('metrics-table-body');
-                tableBody.innerHTML = '';  // Clear the table before adding new rows
-                teamNames = [];  // Reset the team names array
-
-                data.forEach(entry => {
-                    const newRow = document.createElement('tr');
-                    newRow.innerHTML = `
-                    <td>${entry.ChallengeName}</td>
-                    <td>${entry.TeamName}</td>
-                    <td>${cpuUsage} %</td>
-                    <td>${ramUsage} MB</td>
-                    <td><button class="btn btn-danger stop-btn" data-challenge-id="${entry.ChallengeId}" data-team-id="${entry.TeamId}">Stop</button></td>
-                `;
-                    tableBody.appendChild(newRow);
-                    sttCounter++;
-
-                    // Giới hạn số lượng dòng trong bảng
-                    if (tableBody.rows.length > 20) {
-                        tableBody.deleteRow(0);  // Remove the oldest row if table exceeds 20 rows
-                    }
-                });
-
-                // Giới thiệu sự kiện cho các nút "Stop"
-                document.querySelectorAll('.stop-btn').forEach(button => {
-                    button.addEventListener('click', stopChallenge);
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching performance data:', error);
-                alert('Error fetching performance data. Please try again.');
-            });
-    }
-
-    // Hàm để dừng challenge
-    function stopChallenge(event) {
-        const button = event.target;
-        const challengeId = button.getAttribute('data-challenge-id');
-        const teamId = button.getAttribute('data-team-id');
-        fetch('/api/challenge/stop-by-admin', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                challenge_id: challengeId,
-                team_id: teamId
-            })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.isSuccess == true) {
-                    alert('Challenge stopped successfully!');
-                    window.location.reload();
-                } else {
-                    alert('Failed to stop the challenge. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error stopping challenge:', error);
-                alert('Error stopping challenge. Please try again.');
-            });
-    }
-
-    // Gọi API lần đầu ngay khi trang tải
-    updateChartsAndTable();
-
-    // Set interval to update charts and table every 10 seconds
-    setInterval(updateChartsAndTable, 10000); // Call every 10 seconds (10000 ms)
-</script>
 
 {% endblock %}

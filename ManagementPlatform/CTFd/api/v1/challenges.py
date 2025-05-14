@@ -991,4 +991,3 @@ class ChallengeRequirements(Resource):
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         return {"success": True, "data": challenge.requirements}
-

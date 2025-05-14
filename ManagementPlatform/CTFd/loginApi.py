@@ -55,6 +55,16 @@ def login():
             team = Teams.query.filter_by(id=user.team_id).first()
             session.regenerate()
         session["user_token"] = token.value
+        if not team:
+            return (
+                jsonify(
+                    {
+                        "message": "you don't have a team yet",
+                        "generatedToken": token.value,
+                    }
+                ),
+                400,
+            )
 
         user_data = {
             "id": user.id,

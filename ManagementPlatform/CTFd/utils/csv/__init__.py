@@ -488,11 +488,12 @@ def load_users_and_teams_csv(csvfile):
                 continue
 
         # Create user
-        user_password = '123456Aa@'
+        user_password = ''.join(SystemRandom().choice(
+            'abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(8))
         user_data = {
             "name": row.get("Name"),
             "email": row.get("Email"),
-            "password": "123456Aa@",
+            "password": user_password,
             "team_id": team.id if team else None
         }
         try:

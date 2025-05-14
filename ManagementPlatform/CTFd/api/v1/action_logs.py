@@ -117,7 +117,7 @@ class ActionLogList(Resource):
 
             log = ActionLogs(
                 userId=user.id,
-                actionDate=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+                actionDate=datetime.now(timezone.uct).isoformat(),
                 actionType=validated_data.actionType,
                 actionDetail=validated_data.actionDetail,
                 topicName=topic_name,
